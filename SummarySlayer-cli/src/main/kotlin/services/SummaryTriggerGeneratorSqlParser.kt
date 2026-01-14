@@ -24,380 +24,579 @@ data class PassColumnInfo(
     val alias: String
 )
 
+private data class UpsertComponents(
+    val keyColumns: List<String>,
+    val keyOldExpressions: List<String>,
+    val keyNewExpressions: List<String>,
+    val newInsertColumns: List<String>,
+    val newInsertValues: List<String>,
+    val newUpdateExpressions: List<String>,
+    val oldInsertColumns: List<String>,
+    val oldInsertValues: List<String>,
+    val oldUpdateExpressions: List<String>
+)
+
+private data class ParsedQuery(
+    val baseTableName: String,
+    val whereClause: String?,
+    val groupByColumns: List<String>,
+    val aggregates: List<AggregateInfo>,
+    val passThroughColumns: List<PassColumnInfo>
+)
+
 class SummaryTriggerGeneratorSqlParser {
 
-    /**
-     * Generate summary table DDL and triggers from a SELECT query
-     * @param query SELECT ... FROM base [WHERE ...] [GROUP BY ...]
-     * @param summaryTable Optional override for summary table name
-     * @return TriggerGeneratorResult with DDL and trigger definitions
-     */
     fun generate(query: String, summaryTable: String? = null): TriggerGeneratorResult {
-        val sql = query.trim().trimEnd(';', ' ', '\t', '\n', '\r') + ";"
+        val normalizedQuery = normalizeQuery(query)
+        val plainSelect = parseAndValidateQuery(normalizedQuery)
+        val parsedQuery = extractQueryComponents(plainSelect, normalizedQuery)
 
-        // Parse the SQL
-        val statement = try {
-            CCJSqlParserUtil.parse(sql)
+        val columnDefinitions = loadColumnDefinitionsIfNeeded(parsedQuery.baseTableName, parsedQuery.groupByColumns)
+        val summaryTableName = summaryTable ?: generateSummaryTableName(parsedQuery.baseTableName, parsedQuery.groupByColumns)
+        val tableDdl = buildSummaryTableDDL(summaryTableName, columnDefinitions, parsedQuery.aggregates)
+
+        val wherePredicates = buildWherePredicates(parsedQuery.whereClause)
+        val upsertComponents = buildUpsertComponents(columnDefinitions, parsedQuery.aggregates)
+        val triggers = buildTriggers(parsedQuery.baseTableName, summaryTableName, wherePredicates, upsertComponents)
+
+        return TriggerGeneratorResult(
+            summaryTable = tableDdl,
+            triggers = triggers,
+            preview = formatPreview(tableDdl, triggers)
+        )
+    }
+
+    private fun normalizeQuery(query: String): String {
+        return query.trim().trimEnd(';', ' ', '\t', '\n', '\r') + ";"
+    }
+
+    private fun parseAndValidateQuery(query: String): PlainSelect {
+        val statement = parseQuery(query)
+        validateSelectStatement(statement)
+        return extractPlainSelect(statement)
+    }
+
+    private fun parseQuery(query: String): net.sf.jsqlparser.statement.Statement {
+        return try {
+            CCJSqlParserUtil.parse(query)
         } catch (e: Exception) {
             throw IllegalArgumentException("Failed to parse SQL: ${e.message}", e)
         }
+    }
 
+    private fun validateSelectStatement(statement: net.sf.jsqlparser.statement.Statement) {
         if (statement !is Select) {
             throw IllegalArgumentException("Query must be a SELECT statement.")
         }
+    }
 
+    private fun extractPlainSelect(statement: net.sf.jsqlparser.statement.Statement): PlainSelect {
         @Suppress("DEPRECATION")
-        val plainSelect = statement.selectBody as? PlainSelect
+        return (statement as Select).selectBody as? PlainSelect
             ?: throw IllegalArgumentException("Only simple SELECT queries are supported.")
+    }
 
-        // ---- 1) Validate basic structure ----
-        if (plainSelect.fromItem == null) {
-            throw IllegalArgumentException("Query must contain FROM clause.")
-        }
+    private fun extractQueryComponents(plainSelect: PlainSelect, originalQuery: String): ParsedQuery {
+        val baseTableName = extractBaseTableName(plainSelect)
+        val whereClause = extractWhereClause(originalQuery)
+        val groupByColumns = extractGroupByColumns(plainSelect)
+        val (aggregates, passThroughColumns) = extractSelectListComponents(plainSelect, groupByColumns)
 
+        return ParsedQuery(baseTableName, whereClause, groupByColumns, aggregates, passThroughColumns)
+    }
+
+    private fun extractBaseTableName(plainSelect: PlainSelect): String {
         val fromItem = plainSelect.fromItem
+            ?: throw IllegalArgumentException("Query must contain FROM clause.")
+
         if (fromItem !is SqlTable) {
             throw IllegalArgumentException("Exactly one base table is supported.")
         }
 
-        val baseTable = fromItem.name
-        if (baseTable.isNullOrEmpty()) {
+        val tableName = fromItem.name
+        if (tableName.isNullOrEmpty()) {
             throw IllegalArgumentException("Could not resolve base table name.")
         }
 
-        // WHERE clause (we'll extract the text to preserve it)
-        val whereText = extractWhereClause(sql)
+        return tableName
+    }
 
-        // ---- 2) Extract GROUP BY columns (optional) ----
-        val groupCols = mutableListOf<String>()
+    private fun extractGroupByColumns(plainSelect: PlainSelect): List<String> {
+        val groupColumns = mutableListOf<String>()
+
         plainSelect.groupBy?.let { groupBy ->
             @Suppress("DEPRECATION")
             groupBy.groupByExpressions?.forEach { expr ->
                 if (expr is Column) {
-                    groupCols.add(trimIdent(expr.columnName))
+                    groupColumns.add(trimIdentifier(expr.columnName))
                 } else {
                     throw IllegalArgumentException("Only simple column GROUP BY expressions are supported.")
                 }
             }
         }
 
-        // ---- 3) Parse SELECT list into pass-through (group keys) and aggregates ----
+        return groupColumns
+    }
+
+    private fun extractSelectListComponents(plainSelect: PlainSelect, groupByColumns: List<String>): Pair<List<AggregateInfo>, List<PassColumnInfo>> {
         val aggregates = mutableListOf<AggregateInfo>()
-        val passCols = mutableListOf<PassColumnInfo>()
+        val passThroughColumns = mutableListOf<PassColumnInfo>()
 
         plainSelect.selectItems?.forEach { selectItem ->
-            when (selectItem) {
-                is SelectItem<*> -> {
-                    val expr = selectItem.expression
-                    val alias = selectItem.alias?.name
+            processSelectItem(selectItem, groupByColumns, aggregates, passThroughColumns)
+        }
 
-                    when (expr) {
-                        is Column -> {
-                            val col = trimIdent(expr.columnName)
-                            if (!groupCols.contains(col)) {
-                                throw IllegalArgumentException("Non-aggregate column \"$col\" must be included in GROUP BY.")
-                            }
-                            passCols.add(PassColumnInfo(col, alias ?: col))
-                        }
-                        is Function -> {
-                            val func = expr.name.uppercase()
-                            if (func !in listOf("SUM", "COUNT")) {
-                                throw IllegalArgumentException("Aggregate $func is not supported (only SUM, COUNT).")
-                            }
+        validateAggregatesPresent(aggregates)
+        return Pair(aggregates, passThroughColumns)
+    }
 
-                            val arg = extractAggregateArg(expr)
-                            if (func == "COUNT" && arg != "*") {
-                                throw IllegalArgumentException("Only COUNT(*) is supported.")
-                            }
+    private fun processSelectItem(
+        selectItem: Any,
+        groupByColumns: List<String>,
+        aggregates: MutableList<AggregateInfo>,
+        passThroughColumns: MutableList<PassColumnInfo>
+    ) {
+        when (selectItem) {
+            is SelectItem<*> -> {
+                val expression = selectItem.expression
+                val alias = selectItem.alias?.name
 
-                            val aggAlias = alias ?: if (func == "SUM") "sum_$arg" else "row_count"
-                            aggregates.add(AggregateInfo(func, arg, aggAlias))
-                        }
-                        else -> throw IllegalArgumentException("Unsupported SELECT expression type: ${expr.javaClass.simpleName}")
-                    }
+                when (expression) {
+                    is Column -> processColumnExpression(expression, alias, groupByColumns, passThroughColumns)
+                    is Function -> processFunctionExpression(expression, alias, aggregates)
+                    else -> throw IllegalArgumentException("Unsupported SELECT expression type: ${expression.javaClass.simpleName}")
                 }
-                else -> throw IllegalArgumentException("Unsupported SELECT item type.")
             }
+            else -> throw IllegalArgumentException("Unsupported SELECT item type.")
         }
-
-        if (aggregates.isEmpty()) {
-            throw IllegalArgumentException("At least one aggregate (SUM/COUNT) is required.")
-        }
-
-        // ---- 4) Infer group-by column definitions from INFORMATION_SCHEMA ----
-        val connection = DatabaseConnection.getConnection()
-            ?: throw IllegalStateException("Database connection not initialized.")
-
-        val dbName = connection.catalog
-        val colDefs = if (groupCols.isNotEmpty()) {
-            loadColumnDefs(dbName, baseTable, groupCols)
-        } else {
-            emptyMap()
-        }
-
-        // ---- 5) Build summary table DDL ----
-        val summary = summaryTable ?: defaultSummaryName(baseTable, groupCols)
-        val ddl = buildSummaryTableDDL(summary, colDefs, aggregates)
-
-        // ---- 6) Build predicates for triggers ----
-        val whereOldPref = if (whereText != null) prefixPredicate(whereText, "OLD") else "1"
-        val whereNewPref = if (whereText != null) prefixPredicate(whereText, "NEW") else "1"
-
-        // ---- 7) Assemble UPSERT delta statements ----
-        val (keyCols, keyOldExprs, keyNewExprs) = if (colDefs.isEmpty()) {
-            Triple(
-                listOf("`summary_id`"),
-                listOf("1"),
-                listOf("1")
-            )
-        } else {
-            Triple(
-                colDefs.keys.map { "`$it`" },
-                colDefs.keys.map { "OLD.`$it`" },
-                colDefs.keys.map { "NEW.`$it`" }
-            )
-        }
-
-        val newInsertCols = mutableListOf<String>()
-        val newInsertVals = mutableListOf<String>()
-        val updExprsNew = mutableListOf<String>()
-        val oldInsertCols = mutableListOf<String>()
-        val oldInsertVals = mutableListOf<String>()
-        val updExprsOld = mutableListOf<String>()
-
-        aggregates.forEach { ag ->
-            val alias = ag.alias
-            if (ag.func == "SUM") {
-                val col = ag.col
-                newInsertCols.add("`$alias`")
-                newInsertVals.add("NEW.`$col`")
-                updExprsNew.add("`$alias` = `$alias` + VALUES(`$alias`)")
-                oldInsertCols.add("`$alias`")
-                oldInsertVals.add("-(OLD.`$col`)")
-                updExprsOld.add("`$alias` = `$alias` + VALUES(`$alias`)")
-            } else { // COUNT
-                newInsertCols.add("`$alias`")
-                newInsertVals.add("1")
-                updExprsNew.add("`$alias` = `$alias` + VALUES(`$alias`)")
-                oldInsertCols.add("`$alias`")
-                oldInsertVals.add("-1")
-                updExprsOld.add("`$alias` = `$alias` + VALUES(`$alias`)")
-            }
-        }
-
-        val oldUpsert = """INSERT INTO `$summary` (${keyCols.joinToString(", ")}, ${oldInsertCols.joinToString(", ")}) VALUES (${keyOldExprs.joinToString(", ")}, ${oldInsertVals.joinToString(", ")})
-ON DUPLICATE KEY UPDATE ${updExprsOld.joinToString(", ")};"""
-
-        val newUpsert = """INSERT INTO `$summary` (${keyCols.joinToString(", ")}, ${newInsertCols.joinToString(", ")}) VALUES (${keyNewExprs.joinToString(", ")}, ${newInsertVals.joinToString(", ")})
-ON DUPLICATE KEY UPDATE ${updExprsNew.joinToString(", ")};"""
-
-        // ---- 8) Triggers ----
-        val trgBase = sanitizeIdent(baseTable)
-
-        val insTrg = """CREATE TRIGGER `${trgBase}_ai_summary` AFTER INSERT ON `$baseTable` FOR EACH ROW
-BEGIN
-    IF $whereNewPref THEN
-        $newUpsert
-    END IF;
-END;"""
-
-        val delTrg = """CREATE TRIGGER `${trgBase}_ad_summary` AFTER DELETE ON `$baseTable` FOR EACH ROW
-BEGIN
-    IF $whereOldPref THEN
-        $oldUpsert
-    END IF;
-END;"""
-
-        val updTrg = """CREATE TRIGGER `${trgBase}_au_summary` AFTER UPDATE ON `$baseTable` FOR EACH ROW
-BEGIN
-    IF $whereOldPref THEN
-        $oldUpsert
-    END IF;
-    IF $whereNewPref THEN
-        $newUpsert
-    END IF;
-END;"""
-
-        val preview = """-- Summary table to create:
-$ddl
-
--- Triggers to create:
-$insTrg
-
-$updTrg
-
-$delTrg"""
-
-        return TriggerGeneratorResult(
-            summaryTable = ddl,
-            triggers = mapOf(
-                "insert" to insTrg,
-                "update" to updTrg,
-                "delete" to delTrg
-            ),
-            preview = preview
-        )
     }
 
-    // ---------------- Helpers ----------------
-
-    private fun trimIdent(s: String): String {
-        var result = s.trim().trim('`', '"')
-        // Drop table qualifiers: t.user_id -> user_id
-        if (result.contains('.')) {
-            result = result.split('.').last().trim('`', '"')
+    private fun processColumnExpression(
+        column: Column,
+        alias: String?,
+        groupByColumns: List<String>,
+        passThroughColumns: MutableList<PassColumnInfo>
+    ) {
+        val columnName = trimIdentifier(column.columnName)
+        if (!groupByColumns.contains(columnName)) {
+            throw IllegalArgumentException("Non-aggregate column \"$columnName\" must be included in GROUP BY.")
         }
-        return result
+        passThroughColumns.add(PassColumnInfo(columnName, alias ?: columnName))
     }
 
-    private fun extractAggregateArg(func: Function): String {
+    private fun processFunctionExpression(function: Function, alias: String?, aggregates: MutableList<AggregateInfo>) {
+        val functionName = function.name.uppercase()
+        validateAggregateFunction(functionName)
+
+        val argument = extractAggregateArgument(function)
+        validateAggregateArgument(functionName, argument)
+
+        val aggregateAlias = alias ?: generateDefaultAggregateAlias(functionName, argument)
+        aggregates.add(AggregateInfo(functionName, argument, aggregateAlias))
+    }
+
+    private fun validateAggregateFunction(functionName: String) {
+        if (functionName !in listOf("SUM", "COUNT")) {
+            throw IllegalArgumentException("Aggregate $functionName is not supported (only SUM, COUNT).")
+        }
+    }
+
+    private fun extractAggregateArgument(function: Function): String {
         @Suppress("DEPRECATION")
-        val params = func.parameters?.expressions
-        if (params.isNullOrEmpty()) {
+        val parameters = function.parameters?.expressions
+        if (parameters.isNullOrEmpty()) {
             throw IllegalArgumentException("Malformed aggregate function.")
         }
 
-        val arg = params[0]
+        val argument = parameters[0]
         return when {
-            arg is Column -> trimIdent(arg.columnName)
-            arg.toString().trim() == "*" -> "*"
+            argument is Column -> trimIdentifier(argument.columnName)
+            argument.toString().trim() == "*" -> "*"
             else -> throw IllegalArgumentException("Unsupported aggregate argument (use column for SUM, * for COUNT).")
         }
     }
 
-    private fun extractWhereClause(sql: String): String? {
-        // Simple, reliable: capture text between WHERE and GROUP BY (or end)
-        val whereGroupPattern = Regex("""\bWHERE\b(.*?)\bGROUP\s+BY\b""", RegexOption.IGNORE_CASE)
-        val whereMatch = whereGroupPattern.find(sql)
-
-        if (whereMatch != null) {
-            return whereMatch.groupValues[1].trim()
+    private fun validateAggregateArgument(functionName: String, argument: String) {
+        if (functionName == "COUNT" && argument != "*") {
+            throw IllegalArgumentException("Only COUNT(*) is supported.")
         }
-
-        // WHERE present without GROUP BY - capture until end of statement
-        if (sql.uppercase().contains(" WHERE ")) {
-            val whereEndPattern = Regex("""\bWHERE\b(.*?)$""", RegexOption.IGNORE_CASE)
-            val match = whereEndPattern.find(sql)
-            if (match != null) {
-                return match.groupValues[1].trim().trimEnd(';', ' ', '\t', '\n', '\r')
-            }
-        }
-
-        return null
     }
 
-    private fun loadColumnDefs(db: String, table: String, cols: List<String>): Map<String, String> {
+    private fun generateDefaultAggregateAlias(functionName: String, argument: String): String {
+        return if (functionName == "SUM") "sum_$argument" else "row_count"
+    }
+
+    private fun validateAggregatesPresent(aggregates: List<AggregateInfo>) {
+        if (aggregates.isEmpty()) {
+            throw IllegalArgumentException("At least one aggregate (SUM/COUNT) is required.")
+        }
+    }
+
+    private fun loadColumnDefinitionsIfNeeded(baseTableName: String, groupByColumns: List<String>): Map<String, String> {
+        if (groupByColumns.isEmpty()) {
+            return emptyMap()
+        }
+
         val connection = DatabaseConnection.getConnection()
             ?: throw IllegalStateException("Database connection not initialized.")
 
-        val placeholders = cols.joinToString(",") { "?" }
+        return loadColumnDefinitions(connection.catalog, baseTableName, groupByColumns)
+    }
+
+    private fun loadColumnDefinitions(databaseName: String, tableName: String, columnNames: List<String>): Map<String, String> {
+        val connection = DatabaseConnection.getConnection()
+            ?: throw IllegalStateException("Database connection not initialized.")
+
+        val columnDefinitionsMap = queryColumnDefinitions(connection, databaseName, tableName, columnNames)
+        validateAllColumnsFound(columnNames, columnDefinitionsMap, tableName)
+
+        return columnNames.associateWith { columnDefinitionsMap[it]!! }
+    }
+
+    private fun queryColumnDefinitions(
+        connection: java.sql.Connection,
+        databaseName: String,
+        tableName: String,
+        columnNames: List<String>
+    ): Map<String, String> {
+        val placeholders = columnNames.joinToString(",") { "?" }
         val sql = """
             SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE
             FROM INFORMATION_SCHEMA.COLUMNS
             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME IN ($placeholders)
         """.trimIndent()
 
-        val stmt = connection.prepareStatement(sql)
-        stmt.setString(1, db)
-        stmt.setString(2, table)
-        cols.forEachIndexed { index, col ->
-            stmt.setString(index + 3, col)
+        val statement = connection.prepareStatement(sql)
+        statement.setString(1, databaseName)
+        statement.setString(2, tableName)
+        columnNames.forEachIndexed { index, columnName ->
+            statement.setString(index + 3, columnName)
         }
 
-        val defs = mutableMapOf<String, String>()
-        val rs = stmt.executeQuery()
+        val definitions = mutableMapOf<String, String>()
+        val resultSet = statement.executeQuery()
 
-        while (rs.next()) {
-            val colName = rs.getString("COLUMN_NAME")
-            val colType = rs.getString("COLUMN_TYPE")
-            val isNullable = rs.getString("IS_NULLABLE")
+        while (resultSet.next()) {
+            val columnName = resultSet.getString("COLUMN_NAME")
+            val columnType = resultSet.getString("COLUMN_TYPE")
+            val isNullable = resultSet.getString("IS_NULLABLE")
 
-            defs[colName] = "`$colName` $colType ${if (isNullable == "YES") "NULL" else "NOT NULL"}"
+            definitions[columnName] = "`$columnName` $columnType ${if (isNullable == "YES") "NULL" else "NOT NULL"}"
         }
-        rs.close()
-        stmt.close()
 
-        // Verify all columns were found
-        cols.forEach { col ->
-            if (!defs.containsKey(col)) {
-                throw IllegalArgumentException("Group-by column `$col` not found on `$table`.")
+        resultSet.close()
+        statement.close()
+
+        return definitions
+    }
+
+    private fun validateAllColumnsFound(columnNames: List<String>, definitions: Map<String, String>, tableName: String) {
+        columnNames.forEach { columnName ->
+            if (!definitions.containsKey(columnName)) {
+                throw IllegalArgumentException("Group-by column `$columnName` not found on `$tableName`.")
             }
         }
-
-        // Preserve input order
-        return cols.associateWith { defs[it]!! }
     }
 
-    private fun defaultSummaryName(baseTable: String, groupCols: List<String>): String {
-        return if (groupCols.isEmpty()) {
-            toSnakeCase("${baseTable}_summary")
+    private fun generateSummaryTableName(baseTableName: String, groupByColumns: List<String>): String {
+        return if (groupByColumns.isEmpty()) {
+            convertToSnakeCase("${baseTableName}_summary")
         } else {
-            toSnakeCase("${baseTable}_${groupCols.joinToString("_")}_summary")
+            convertToSnakeCase("${baseTableName}_${groupByColumns.joinToString("_")}_summary")
         }
     }
 
-    private fun toSnakeCase(str: String): String {
-        return str.replace(Regex("([a-z])([A-Z])"), "$1_$2")
+    private fun buildSummaryTableDDL(
+        summaryTableName: String,
+        keyColumnDefinitions: Map<String, String>,
+        aggregates: List<AggregateInfo>
+    ): String {
+        val (allColumnDefinitions, primaryKeyColumns) = if (keyColumnDefinitions.isEmpty()) {
+            buildNonGroupedTableStructure(aggregates)
+        } else {
+            buildGroupedTableStructure(keyColumnDefinitions, aggregates)
+        }
+
+        return formatTableDdl(summaryTableName, allColumnDefinitions, primaryKeyColumns)
+    }
+
+    private fun buildNonGroupedTableStructure(aggregates: List<AggregateInfo>): Pair<List<String>, String> {
+        val columnDefinitions = listOf("`summary_id` TINYINT UNSIGNED NOT NULL DEFAULT 1") +
+            aggregates.map { buildAggregateColumnDefinition(it) }
+        return Pair(columnDefinitions, "`summary_id`")
+    }
+
+    private fun buildGroupedTableStructure(
+        keyColumnDefinitions: Map<String, String>,
+        aggregates: List<AggregateInfo>
+    ): Pair<List<String>, String> {
+        val columnDefinitions = keyColumnDefinitions.values.toList() +
+            aggregates.map { buildAggregateColumnDefinition(it) }
+        val primaryKeyColumns = keyColumnDefinitions.keys.joinToString(",") { "`$it`" }
+        return Pair(columnDefinitions, primaryKeyColumns)
+    }
+
+    private fun buildAggregateColumnDefinition(aggregate: AggregateInfo): String {
+        return if (aggregate.func == "SUM") {
+            "`${aggregate.alias}` DECIMAL(38,6) NOT NULL DEFAULT 0"
+        } else {
+            "`${aggregate.alias}` BIGINT UNSIGNED NOT NULL DEFAULT 0"
+        }
+    }
+
+    private fun formatTableDdl(tableName: String, columnDefinitions: List<String>, primaryKeyColumns: String): String {
+        return """CREATE TABLE IF NOT EXISTS `$tableName` (
+  ${columnDefinitions.joinToString(",\n  ")},
+  PRIMARY KEY ($primaryKeyColumns)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"""
+    }
+
+    private fun buildWherePredicates(whereClause: String?): Pair<String, String> {
+        val oldRowPredicate = if (whereClause != null) prefixPredicateWithRowReference(whereClause, "OLD") else "1"
+        val newRowPredicate = if (whereClause != null) prefixPredicateWithRowReference(whereClause, "NEW") else "1"
+        return Pair(oldRowPredicate, newRowPredicate)
+    }
+
+    private fun buildUpsertComponents(
+        columnDefinitions: Map<String, String>,
+        aggregates: List<AggregateInfo>
+    ): UpsertComponents {
+        val (keyColumns, keyOldExpressions, keyNewExpressions) = buildKeyExpressions(columnDefinitions)
+        val (newInsertColumns, newInsertValues, newUpdateExpressions) = buildNewRowExpressions(aggregates)
+        val (oldInsertColumns, oldInsertValues, oldUpdateExpressions) = buildOldRowExpressions(aggregates)
+
+        return UpsertComponents(
+            keyColumns, keyOldExpressions, keyNewExpressions,
+            newInsertColumns, newInsertValues, newUpdateExpressions,
+            oldInsertColumns, oldInsertValues, oldUpdateExpressions
+        )
+    }
+
+    private fun buildKeyExpressions(columnDefinitions: Map<String, String>): Triple<List<String>, List<String>, List<String>> {
+        return if (columnDefinitions.isEmpty()) {
+            Triple(listOf("`summary_id`"), listOf("1"), listOf("1"))
+        } else {
+            Triple(
+                columnDefinitions.keys.map { "`$it`" },
+                columnDefinitions.keys.map { "OLD.`$it`" },
+                columnDefinitions.keys.map { "NEW.`$it`" }
+            )
+        }
+    }
+
+    private fun buildNewRowExpressions(aggregates: List<AggregateInfo>): Triple<List<String>, List<String>, List<String>> {
+        val insertColumns = mutableListOf<String>()
+        val insertValues = mutableListOf<String>()
+        val updateExpressions = mutableListOf<String>()
+
+        aggregates.forEach { aggregate ->
+            val (column, value) = buildNewRowAggregateExpression(aggregate)
+            insertColumns.add(column)
+            insertValues.add(value)
+            updateExpressions.add("$column = $column + VALUES($column)")
+        }
+
+        return Triple(insertColumns, insertValues, updateExpressions)
+    }
+
+    private fun buildNewRowAggregateExpression(aggregate: AggregateInfo): Pair<String, String> {
+        val columnName = "`${aggregate.alias}`"
+        val value = if (aggregate.func == "SUM") "NEW.`${aggregate.col}`" else "1"
+        return Pair(columnName, value)
+    }
+
+    private fun buildOldRowExpressions(aggregates: List<AggregateInfo>): Triple<List<String>, List<String>, List<String>> {
+        val insertColumns = mutableListOf<String>()
+        val insertValues = mutableListOf<String>()
+        val updateExpressions = mutableListOf<String>()
+
+        aggregates.forEach { aggregate ->
+            val (column, value) = buildOldRowAggregateExpression(aggregate)
+            insertColumns.add(column)
+            insertValues.add(value)
+            updateExpressions.add("$column = $column + VALUES($column)")
+        }
+
+        return Triple(insertColumns, insertValues, updateExpressions)
+    }
+
+    private fun buildOldRowAggregateExpression(aggregate: AggregateInfo): Pair<String, String> {
+        val columnName = "`${aggregate.alias}`"
+        val value = if (aggregate.func == "SUM") "-(OLD.`${aggregate.col}`)" else "-1"
+        return Pair(columnName, value)
+    }
+
+    private fun buildTriggers(
+        baseTableName: String,
+        summaryTableName: String,
+        wherePredicates: Pair<String, String>,
+        upsertComponents: UpsertComponents
+    ): Map<String, String> {
+        val (oldRowPredicate, newRowPredicate) = wherePredicates
+
+        val oldUpsertStatement = buildUpsertStatement(
+            summaryTableName,
+            upsertComponents.keyColumns,
+            upsertComponents.keyOldExpressions,
+            upsertComponents.oldInsertColumns,
+            upsertComponents.oldInsertValues,
+            upsertComponents.oldUpdateExpressions
+        )
+
+        val newUpsertStatement = buildUpsertStatement(
+            summaryTableName,
+            upsertComponents.keyColumns,
+            upsertComponents.keyNewExpressions,
+            upsertComponents.newInsertColumns,
+            upsertComponents.newInsertValues,
+            upsertComponents.newUpdateExpressions
+        )
+
+        val sanitizedTableName = sanitizeIdentifier(baseTableName)
+
+        return mapOf(
+            "insert" to buildInsertTrigger(sanitizedTableName, baseTableName, newRowPredicate, newUpsertStatement),
+            "update" to buildUpdateTrigger(sanitizedTableName, baseTableName, oldRowPredicate, oldUpsertStatement, newRowPredicate, newUpsertStatement),
+            "delete" to buildDeleteTrigger(sanitizedTableName, baseTableName, oldRowPredicate, oldUpsertStatement)
+        )
+    }
+
+    private fun buildUpsertStatement(
+        tableName: String,
+        keyColumns: List<String>,
+        keyExpressions: List<String>,
+        insertColumns: List<String>,
+        insertValues: List<String>,
+        updateExpressions: List<String>
+    ): String {
+        return """INSERT INTO `$tableName` (${keyColumns.joinToString(", ")}, ${insertColumns.joinToString(", ")}) VALUES (${keyExpressions.joinToString(", ")}, ${insertValues.joinToString(", ")})
+ON DUPLICATE KEY UPDATE ${updateExpressions.joinToString(", ")};"""
+    }
+
+    private fun buildInsertTrigger(
+        sanitizedTableName: String,
+        baseTableName: String,
+        predicate: String,
+        upsertStatement: String
+    ): String {
+        return """CREATE TRIGGER `${sanitizedTableName}_ai_summary` AFTER INSERT ON `$baseTableName` FOR EACH ROW
+BEGIN
+    IF $predicate THEN
+        $upsertStatement
+    END IF;
+END;"""
+    }
+
+    private fun buildDeleteTrigger(
+        sanitizedTableName: String,
+        baseTableName: String,
+        predicate: String,
+        upsertStatement: String
+    ): String {
+        return """CREATE TRIGGER `${sanitizedTableName}_ad_summary` AFTER DELETE ON `$baseTableName` FOR EACH ROW
+BEGIN
+    IF $predicate THEN
+        $upsertStatement
+    END IF;
+END;"""
+    }
+
+    private fun buildUpdateTrigger(
+        sanitizedTableName: String,
+        baseTableName: String,
+        oldPredicate: String,
+        oldUpsertStatement: String,
+        newPredicate: String,
+        newUpsertStatement: String
+    ): String {
+        return """CREATE TRIGGER `${sanitizedTableName}_au_summary` AFTER UPDATE ON `$baseTableName` FOR EACH ROW
+BEGIN
+    IF $oldPredicate THEN
+        $oldUpsertStatement
+    END IF;
+    IF $newPredicate THEN
+        $newUpsertStatement
+    END IF;
+END;"""
+    }
+
+    private fun formatPreview(tableDdl: String, triggers: Map<String, String>): String {
+        return """-- Summary table to create:
+$tableDdl
+
+-- Triggers to create:
+${triggers["insert"]}
+
+${triggers["update"]}
+
+${triggers["delete"]}"""
+    }
+
+    private fun trimIdentifier(identifier: String): String {
+        var result = identifier.trim().trim('`', '"')
+        if (result.contains('.')) {
+            result = result.split('.').last().trim('`', '"')
+        }
+        return result
+    }
+
+    private fun extractWhereClause(query: String): String? {
+        val whereBeforeGroupBy = extractWhereBeforeGroupBy(query)
+        if (whereBeforeGroupBy != null) {
+            return whereBeforeGroupBy
+        }
+
+        return extractWhereAtEnd(query)
+    }
+
+    private fun extractWhereBeforeGroupBy(query: String): String? {
+        val pattern = Regex("""\bWHERE\b(.*?)\bGROUP\s+BY\b""", RegexOption.IGNORE_CASE)
+        val match = pattern.find(query)
+        return match?.groupValues?.get(1)?.trim()
+    }
+
+    private fun extractWhereAtEnd(query: String): String? {
+        if (!query.uppercase().contains(" WHERE ")) {
+            return null
+        }
+
+        val pattern = Regex("""\bWHERE\b(.*?)$""", RegexOption.IGNORE_CASE)
+        val match = pattern.find(query)
+        return match?.groupValues?.get(1)?.trim()?.trimEnd(';', ' ', '\t', '\n', '\r')
+    }
+
+    private fun prefixPredicateWithRowReference(expression: String, rowReference: String): String {
+        val withoutTableQualifiers = removeTableQualifiers(expression)
+        val withPrefixedIdentifiers = prefixColumnIdentifiers(withoutTableQualifiers, rowReference)
+        return "($withPrefixedIdentifiers)"
+    }
+
+    private fun removeTableQualifiers(expression: String): String {
+        return expression.replace(Regex("""`?(\w+)`?\s*\."""), "")
+    }
+
+    private fun prefixColumnIdentifiers(expression: String, prefix: String): String {
+        val sqlKeywords = setOf("AND", "OR", "NOT", "IN", "IS", "NULL", "LIKE", "BETWEEN", "CASE", "WHEN", "THEN", "END", "TRUE", "FALSE")
+        val pattern = Regex("""`?([A-Za-z_][A-Za-z0-9_]*)`(?=\s*(=|<>|!=|<|>|<=|>=|IS|IN|LIKE|BETWEEN|\)|\s|${'$'}))""", RegexOption.IGNORE_CASE)
+
+        return pattern.replace(expression) { matchResult ->
+            val identifier = matchResult.groupValues[1].uppercase()
+            if (identifier in sqlKeywords) {
+                matchResult.value
+            } else {
+                "$prefix.`${matchResult.groupValues[1]}`"
+            }
+        }
+    }
+
+    private fun convertToSnakeCase(text: String): String {
+        return text.replace(Regex("([a-z])([A-Z])"), "$1_$2")
             .lowercase()
             .replace(Regex("[^a-z0-9_]"), "_")
     }
 
-    private fun buildSummaryTableDDL(summary: String, keyColDefs: Map<String, String>, aggregates: List<AggregateInfo>): String {
-        val keyLines = keyColDefs.values.toList()
-
-        val aggLines = aggregates.map { ag ->
-            val alias = ag.alias
-            if (ag.func == "SUM") {
-                "`$alias` DECIMAL(38,6) NOT NULL DEFAULT 0"
-            } else { // COUNT
-                "`$alias` BIGINT UNSIGNED NOT NULL DEFAULT 0"
-            }
-        }
-
-        // Handle case where there are no grouping columns (no GROUP BY)
-        val (allLines, pkCols) = if (keyColDefs.isEmpty()) {
-            Pair(
-                listOf("`summary_id` TINYINT UNSIGNED NOT NULL DEFAULT 1") + aggLines,
-                "`summary_id`"
-            )
-        } else {
-            Pair(
-                keyLines + aggLines,
-                keyColDefs.keys.joinToString(",") { "`$it`" }
-            )
-        }
-
-        return """CREATE TABLE IF NOT EXISTS `$summary` (
-  ${allLines.joinToString(",\n  ")},
-  PRIMARY KEY ($pkCols)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"""
-    }
-
-    private fun prefixPredicate(expr: String, prefix: String): String {
-        // Prefix bare identifiers with OLD./NEW (keep strings/operators untouched).
-        var e = expr
-
-        // Remove table qualifiers first: t.col -> col
-        e = e.replace(Regex("""`?(\w+)`?\s*\."""), "")
-
-        // Prefix identifiers that look like column names followed by operators/whitespace/paren
-        val deny = setOf("AND", "OR", "NOT", "IN", "IS", "NULL", "LIKE", "BETWEEN", "CASE", "WHEN", "THEN", "END", "TRUE", "FALSE")
-
-        e = Regex("""`?([A-Za-z_][A-Za-z0-9_]*)`(?=\s*(=|<>|!=|<|>|<=|>=|IS|IN|LIKE|BETWEEN|\)|\s|${'$'}))""", RegexOption.IGNORE_CASE)
-            .replace(e) { matchResult ->
-                val id = matchResult.groupValues[1].uppercase()
-                if (id in deny) {
-                    matchResult.value
-                } else {
-                    "$prefix.`${matchResult.groupValues[1]}`"
-                }
-            }
-
-        return "($e)"
-    }
-
-    private fun sanitizeIdent(s: String): String {
-        return s.replace(Regex("[^a-zA-Z0-9_]"), "_")
+    private fun sanitizeIdentifier(identifier: String): String {
+        return identifier.replace(Regex("[^a-zA-Z0-9_]"), "_")
     }
 }
 
