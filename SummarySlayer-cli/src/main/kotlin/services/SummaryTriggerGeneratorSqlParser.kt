@@ -2,7 +2,9 @@ package com.coderjoe.services
 
 import com.coderjoe.database.DatabaseConnection
 import net.sf.jsqlparser.parser.CCJSqlParserUtil
-import net.sf.jsqlparser.statement.select.*
+import net.sf.jsqlparser.statement.select.PlainSelect
+import net.sf.jsqlparser.statement.select.Select
+import net.sf.jsqlparser.statement.select.SelectItem
 import net.sf.jsqlparser.schema.Column
 import net.sf.jsqlparser.schema.Table as SqlTable
 import net.sf.jsqlparser.expression.Function
@@ -434,7 +436,7 @@ class SummaryTriggerGeneratorSqlParser {
     ): Map<String, String> {
         val (oldRowPredicate, newRowPredicate) = wherePredicates
 
-        val oldUpsertStatement = buildUpsertStatement(
+        val oldUpsertStatement = TriggerGenerator().buildUpsertStatement(
             summaryTableName,
             upsertComponents.keyColumns,
             upsertComponents.keyOldExpressions,
@@ -443,7 +445,7 @@ class SummaryTriggerGeneratorSqlParser {
             upsertComponents.oldUpdateExpressions
         )
 
-        val newUpsertStatement = buildUpsertStatement(
+        val newUpsertStatement = TriggerGenerator().buildUpsertStatement(
             summaryTableName,
             upsertComponents.keyColumns,
             upsertComponents.keyNewExpressions,
@@ -455,69 +457,10 @@ class SummaryTriggerGeneratorSqlParser {
         val sanitizedTableName = sanitizeIdentifier(baseTableName)
 
         return mapOf(
-            "insert" to buildInsertTrigger(sanitizedTableName, baseTableName, newRowPredicate, newUpsertStatement),
-            "update" to buildUpdateTrigger(sanitizedTableName, baseTableName, oldRowPredicate, oldUpsertStatement, newRowPredicate, newUpsertStatement),
-            "delete" to buildDeleteTrigger(sanitizedTableName, baseTableName, oldRowPredicate, oldUpsertStatement)
+            "insert" to TriggerGenerator().buildInsertTrigger(sanitizedTableName, baseTableName, newRowPredicate, newUpsertStatement),
+            "update" to TriggerGenerator().buildUpdateTrigger(sanitizedTableName, baseTableName, oldRowPredicate, oldUpsertStatement, newRowPredicate, newUpsertStatement),
+            "delete" to TriggerGenerator().buildDeleteTrigger(sanitizedTableName, baseTableName, oldRowPredicate, oldUpsertStatement)
         )
-    }
-
-    private fun buildUpsertStatement(
-        tableName: String,
-        keyColumns: List<String>,
-        keyExpressions: List<String>,
-        insertColumns: List<String>,
-        insertValues: List<String>,
-        updateExpressions: List<String>
-    ): String {
-        return """INSERT INTO `$tableName` (${keyColumns.joinToString(", ")}, ${insertColumns.joinToString(", ")}) VALUES (${keyExpressions.joinToString(", ")}, ${insertValues.joinToString(", ")})
-ON DUPLICATE KEY UPDATE ${updateExpressions.joinToString(", ")};"""
-    }
-
-    private fun buildInsertTrigger(
-        sanitizedTableName: String,
-        baseTableName: String,
-        predicate: String,
-        upsertStatement: String
-    ): String {
-        return """CREATE TRIGGER `${sanitizedTableName}_ai_summary` AFTER INSERT ON `$baseTableName` FOR EACH ROW
-BEGIN
-    IF $predicate THEN
-        $upsertStatement
-    END IF;
-END;"""
-    }
-
-    private fun buildDeleteTrigger(
-        sanitizedTableName: String,
-        baseTableName: String,
-        predicate: String,
-        upsertStatement: String
-    ): String {
-        return """CREATE TRIGGER `${sanitizedTableName}_ad_summary` AFTER DELETE ON `$baseTableName` FOR EACH ROW
-BEGIN
-    IF $predicate THEN
-        $upsertStatement
-    END IF;
-END;"""
-    }
-
-    private fun buildUpdateTrigger(
-        sanitizedTableName: String,
-        baseTableName: String,
-        oldPredicate: String,
-        oldUpsertStatement: String,
-        newPredicate: String,
-        newUpsertStatement: String
-    ): String {
-        return """CREATE TRIGGER `${sanitizedTableName}_au_summary` AFTER UPDATE ON `$baseTableName` FOR EACH ROW
-BEGIN
-    IF $oldPredicate THEN
-        $oldUpsertStatement
-    END IF;
-    IF $newPredicate THEN
-        $newUpsertStatement
-    END IF;
-END;"""
     }
 
     private fun formatPreview(tableDdl: String, triggers: Map<String, String>): String {
