@@ -1,8 +1,4 @@
 package com.coderjoe
-
-import com.coderjoe.DockerComposeTestBase.Companion.getJdbcUrl
-import com.coderjoe.DockerComposeTestBase.Companion.getPassword
-import com.coderjoe.DockerComposeTestBase.Companion.getUsername
 import com.coderjoe.services.SummaryTriggerGeneratorSqlParser
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -83,11 +79,11 @@ class IntegrationTest: DockerComposeTestBase() {
             assertEquals(10, columnSpecs["user_id"]?.size, "user_id should have size 10 (INT default)")
             assertEquals(false, columnSpecs["user_id"]?.nullable, "user_id should be NOT NULL (primary key)")
 
-            // total_cost should be DECIMAL(38,6) NOT NULL DEFAULT 0 for SUM aggregate
+            // total_cost should be DECIMAL(10,2) NOT NULL DEFAULT 0 for SUM aggregate
             assertTrue(columnSpecs.containsKey("total_cost"), "Table should have total_cost column")
             assertEquals("DECIMAL", columnSpecs["total_cost"]?.typeName, "total_cost should be DECIMAL type for SUM")
-            assertEquals(38, columnSpecs["total_cost"]?.size, "total_cost should have precision 38")
-            assertEquals(6, columnSpecs["total_cost"]?.decimalDigits, "total_cost should have scale 6")
+            assertEquals(10, columnSpecs["total_cost"]?.size, "total_cost should have precision 38")
+            assertEquals(2, columnSpecs["total_cost"]?.decimalDigits, "total_cost should have scale 6")
             assertEquals(false, columnSpecs["total_cost"]?.nullable, "total_cost should be NOT NULL")
 
             // Verify primary key is on user_id
