@@ -92,4 +92,62 @@ class IntegrationTest: DockerComposeTestBase() {
             assertEquals("user_id", primaryKeys.getString("COLUMN_NAME"), "Primary key should be on user_id")
         }
     }
+
+    @Test
+    fun `all three triggers are created successfully`() {
+        val result = parser.generate(query)
+
+        DriverManager.getConnection(
+            getJdbcUrl(),
+            getUsername(),
+            getPassword()
+        ).use { conn ->
+            // Create the summary table first
+            conn.createStatement().execute(result.summaryTable)
+
+            // Create all three triggers
+            result.triggers["insert"]?.let { conn.createStatement().execute(it) }
+            result.triggers["update"]?.let { conn.createStatement().execute(it) }
+            result.triggers["delete"]?.let { conn.createStatement().execute(it) }
+
+            // Verify triggers exist by querying INFORMATION_SCHEMA
+            val triggerQuery = """
+                SELECT TRIGGER_NAME, EVENT_MANIPULATION 
+                FROM INFORMATION_SCHEMA.TRIGGERS 
+                WHERE TRIGGER_SCHEMA = DATABASE() 
+                AND EVENT_OBJECT_TABLE = 'transactions'
+                ORDER BY TRIGGER_NAME
+            """.trimIndent()
+
+            val triggerResult = conn.createStatement().executeQuery(triggerQuery)
+            val triggers = mutableMapOf<String, String>()
+
+            while (triggerResult.next()) {
+                val name = triggerResult.getString("TRIGGER_NAME")
+                val event = triggerResult.getString("EVENT_MANIPULATION")
+                triggers[name] = event
+            }
+
+            // Verify we have exactly 3 triggers
+            assertEquals(3, triggers.size, "Should have exactly 3 triggers")
+
+            // Verify INSERT trigger
+            assertTrue(
+                triggers.any { it.key.contains("insert", ignoreCase = true) && it.value == "INSERT" },
+                "Should have an INSERT trigger"
+            )
+
+            // Verify UPDATE trigger
+            assertTrue(
+                triggers.any { it.key.contains("update", ignoreCase = true) && it.value == "UPDATE" },
+                "Should have an UPDATE trigger"
+            )
+
+            // Verify DELETE trigger
+            assertTrue(
+                triggers.any { it.key.contains("delete", ignoreCase = true) && it.value == "DELETE" },
+                "Should have a DELETE trigger"
+            )
+        }
+    }
 }
