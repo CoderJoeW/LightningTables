@@ -6,7 +6,11 @@ import java.sql.DriverManager
 object DatabaseConnection {
     private var connection: Connection? = null
 
-    fun initialize(url: String, username: String, password: String) {
+    fun initialize(
+        url: String,
+        username: String,
+        password: String,
+    ) {
         connection = DriverManager.getConnection(url, username, password)
     }
 
@@ -42,6 +46,7 @@ abstract class Table(val tableName: String) {
     }
 
     enum class LockType {
-        READ, WRITE
+        READ,
+        WRITE,
     }
 }
