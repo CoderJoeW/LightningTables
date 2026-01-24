@@ -14,12 +14,6 @@ import java.sql.DriverManager
  * - Starts the docker-compose.test.yml container before all tests
  * - Waits for the database to be healthy and ready
  * - Stops and removes the container after all tests complete
- *
- * Benefits:
- * - Fully automated container lifecycle management
- * - Clean test environment for each test run
- * - Suitable for both local development and CI/CD
- * - No manual container management required
  */
 abstract class DockerComposeTestBase {
 
@@ -35,10 +29,7 @@ abstract class DockerComposeTestBase {
         fun setupDatabase() {
             println("Starting Docker Compose test environment...")
 
-            // Start docker-compose
             startDockerCompose()
-
-            // Wait for database to be ready
             waitForDatabase()
 
             // Initialize DatabaseConnection with docker-compose settings
@@ -53,9 +44,8 @@ abstract class DockerComposeTestBase {
 
         @BeforeEach
         fun cleanupBeforeTest() {
-            // Clean database before each test to ensure test isolation
             cleanDatabase()
-            // Optionally re-seed if you need the initial test data
+            recreateSchema()
             reseedDatabase()
         }
 
@@ -135,24 +125,10 @@ abstract class DockerComposeTestBase {
             )
         }
 
-        /**
-         * Get the JDBC URL for the test database
-         */
         fun getJdbcUrl(): String = JDBC_URL
-
-        /**
-         * Get the username for the test database
-         */
         fun getUsername(): String = USERNAME
-
-        /**
-         * Get the password for the test database
-         */
         fun getPassword(): String = PASSWORD
 
-        /**
-         * Execute a raw SQL statement (useful for test setup/teardown)
-         */
         fun executeSQL(sql: String) {
             DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD).use { connection ->
                 connection.createStatement().use { statement ->
@@ -161,27 +137,19 @@ abstract class DockerComposeTestBase {
             }
         }
 
-        /**
-         * Clean all data from tables (useful for test isolation)
-         * This is faster than recreating the container and maintains the schema.
-         */
         fun cleanDatabase() {
             DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD).use { connection ->
                 connection.createStatement().use { statement ->
                     // Disable foreign key checks temporarily
                     statement.execute("SET FOREIGN_KEY_CHECKS = 0")
-                    statement.execute("TRUNCATE transactions")
-                    statement.execute("TRUNCATE users")
+                    statement.execute("DROP TABLE transactions")
+                    statement.execute("DROP TABLE users")
                     // Re-enable foreign key checks
                     statement.execute("SET FOREIGN_KEY_CHECKS = 1")
                 }
             }
         }
 
-        /**
-         * Re-seed the database with the initial test data.
-         * Note: This assumes you've already cleaned the database.
-         */
         fun reseedDatabase() {
             val seedSQL = Thread.currentThread().contextClassLoader.getResource("seed.sql")?.readText()
                 ?: throw IllegalStateException("seed.sql not found in test resources")
@@ -191,6 +159,27 @@ abstract class DockerComposeTestBase {
                     statement.execute("SET FOREIGN_KEY_CHECKS = 0")
                     // Split and execute each statement
                     seedSQL.split(";")
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() && !it.startsWith("--") }
+                        .forEach { sql ->
+                            if (sql.isNotBlank()) {
+                                statement.execute(sql)
+                            }
+                        }
+                    statement.execute("SET FOREIGN_KEY_CHECKS = 1")
+                }
+            }
+        }
+
+        fun recreateSchema() {
+            val schemaSQL = Thread.currentThread().contextClassLoader.getResource("schema.sql")?.readText()
+                ?: throw IllegalStateException("schema.sql not found in test resources")
+
+            DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD).use { connection ->
+                connection.createStatement().use { statement ->
+                    statement.execute("SET FOREIGN_KEY_CHECKS = 0")
+                    // Split and execute each statement
+                    schemaSQL.split(";")
                         .map { it.trim() }
                         .filter { it.isNotEmpty() && !it.startsWith("--") }
                         .forEach { sql ->
