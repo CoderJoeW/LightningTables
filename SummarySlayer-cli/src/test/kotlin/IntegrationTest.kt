@@ -127,4 +127,39 @@ class IntegrationTest: DockerComposeTestBase() {
             }
         }
     }
+
+    @Test
+    fun `original table and summary table match after a single delete`() {
+        val result = parser.generate(queries["sumCostByUser"]!!)
+
+        connect().use { conn ->
+            conn.createStatement().execute("DELETE FROM transactions")
+
+            conn.createStatement().execute(result.summaryTable)
+            result.triggers["insert"]?.let { conn.createStatement().execute(it) }
+            result.triggers["update"]?.let { conn.createStatement().execute(it) }
+            result.triggers["delete"]?.let { conn.createStatement().execute(it) }
+
+            Transactions().seed(10)
+
+            com.coderjoe.database.Transactions().delete(mapOf("user_id" to 1))
+
+            val originalTableQuery = conn.createStatement()
+                .executeQuery(queries["sumCostByUser"]!!)
+
+            val summaryTableQuery = conn.createStatement()
+                .executeQuery("SELECT * FROM transactions_user_id_summary")
+
+            while (originalTableQuery.next()) {
+                summaryTableQuery.next()
+                val originalUserId = originalTableQuery.getString("user_id")
+                val originalCost = originalTableQuery.getString("total_cost")
+                val summaryUserId = summaryTableQuery.getString("user_id")
+                val summaryTotalCost = summaryTableQuery.getString("total_cost")
+
+                assertEquals(originalUserId, summaryUserId)
+                assertEquals(originalCost, summaryTotalCost)
+            }
+        }
+    }
 }
