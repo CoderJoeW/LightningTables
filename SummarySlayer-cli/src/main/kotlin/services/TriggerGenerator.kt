@@ -40,7 +40,8 @@ class TriggerGenerator {
         oldPredicate: String,
         oldUpsertStatement: String,
         newPredicate: String,
-        newUpsertStatement: String
+        newUpsertStatement: String,
+        cleanupStatement: String
     ): String {
         return """
             CREATE TRIGGER `${tableName}_after_update_summary`
@@ -49,6 +50,7 @@ class TriggerGenerator {
             BEGIN
                 IF $oldPredicate THEN
                     $oldUpsertStatement
+                    $cleanupStatement
                 END IF;
 
                 IF $newPredicate THEN
@@ -62,7 +64,8 @@ class TriggerGenerator {
         tableName: String,
         baseTableName: String,
         predicate: String,
-        upsertStatement: String
+        upsertStatement: String,
+        cleanupStatement: String
     ): String {
         return """
             CREATE TRIGGER `${tableName}_after_delete_summary`
@@ -71,6 +74,7 @@ class TriggerGenerator {
             BEGIN
                 IF $predicate THEN
                     $upsertStatement
+                    $cleanupStatement
                 END IF;
             END;
         """.trimIndent()
