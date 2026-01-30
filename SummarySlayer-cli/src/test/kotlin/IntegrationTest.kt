@@ -1,4 +1,5 @@
 package com.coderjoe
+import com.coderjoe.database.seeders.Transactions
 import com.coderjoe.services.SummaryTriggerGeneratorSqlParser
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -41,16 +42,13 @@ class IntegrationTest: DockerComposeTestBase() {
             getUsername(),
             getPassword()
         ).use { conn ->
-            // Create the summary table
             conn.createStatement().execute(result.summaryTable)
 
-            // Verify the table was created
             val metadata = conn.metaData
             val tables = metadata.getTables(null, null, "%summary%", arrayOf("TABLE"))
             assertTrue(tables.next(), "Summary table should be created")
             val tableName = tables.getString("TABLE_NAME")
 
-            // Verify table has expected columns with complete specifications
             val columns = metadata.getColumns(null, null, tableName, null)
 
             data class ColumnSpec(
@@ -71,22 +69,17 @@ class IntegrationTest: DockerComposeTestBase() {
                 columnSpecs[colName] = ColumnSpec(typeName, size, decimalDigits, nullable)
             }
 
-            // Expected structure based on query:
-            // SELECT user_id, SUM(cost) as total_cost FROM transactions GROUP BY user_id
-            // user_id should match the transactions.user_id column: INT NOT NULL
             assertTrue(columnSpecs.containsKey("user_id"), "Table should have user_id column")
             assertEquals("INT", columnSpecs["user_id"]?.typeName, "user_id should be INT type")
             assertEquals(10, columnSpecs["user_id"]?.size, "user_id should have size 10 (INT default)")
             assertEquals(false, columnSpecs["user_id"]?.nullable, "user_id should be NOT NULL (primary key)")
 
-            // total_cost should be DECIMAL(10,2) NOT NULL DEFAULT 0 for SUM aggregate
             assertTrue(columnSpecs.containsKey("total_cost"), "Table should have total_cost column")
             assertEquals("DECIMAL", columnSpecs["total_cost"]?.typeName, "total_cost should be DECIMAL type for SUM")
             assertEquals(10, columnSpecs["total_cost"]?.size, "total_cost should have precision 38")
             assertEquals(2, columnSpecs["total_cost"]?.decimalDigits, "total_cost should have scale 6")
             assertEquals(false, columnSpecs["total_cost"]?.nullable, "total_cost should be NOT NULL")
 
-            // Verify primary key is on user_id
             val primaryKeys = metadata.getPrimaryKeys(null, null, tableName)
             assertTrue(primaryKeys.next(), "Table should have a primary key")
             assertEquals("user_id", primaryKeys.getString("COLUMN_NAME"), "Primary key should be on user_id")
@@ -102,15 +95,12 @@ class IntegrationTest: DockerComposeTestBase() {
             getUsername(),
             getPassword()
         ).use { conn ->
-            // Create the summary table first
             conn.createStatement().execute(result.summaryTable)
 
-            // Create all three triggers
             result.triggers["insert"]?.let { conn.createStatement().execute(it) }
             result.triggers["update"]?.let { conn.createStatement().execute(it) }
             result.triggers["delete"]?.let { conn.createStatement().execute(it) }
 
-            // Verify triggers exist by querying INFORMATION_SCHEMA
             val triggerQuery = """
                 SELECT TRIGGER_NAME, EVENT_MANIPULATION 
                 FROM INFORMATION_SCHEMA.TRIGGERS 
@@ -128,26 +118,59 @@ class IntegrationTest: DockerComposeTestBase() {
                 triggers[name] = event
             }
 
-            // Verify we have exactly 3 triggers
             assertEquals(3, triggers.size, "Should have exactly 3 triggers")
 
-            // Verify INSERT trigger
             assertTrue(
                 triggers.any { it.key.contains("insert", ignoreCase = true) && it.value == "INSERT" },
                 "Should have an INSERT trigger"
             )
 
-            // Verify UPDATE trigger
             assertTrue(
                 triggers.any { it.key.contains("update", ignoreCase = true) && it.value == "UPDATE" },
                 "Should have an UPDATE trigger"
             )
 
-            // Verify DELETE trigger
             assertTrue(
                 triggers.any { it.key.contains("delete", ignoreCase = true) && it.value == "DELETE" },
                 "Should have a DELETE trigger"
             )
+        }
+    }
+
+    @Test
+    fun `original table and summary table match after a single insert`() {
+        val result = parser.generate(query)
+
+        DriverManager.getConnection(
+            getJdbcUrl(),
+            getUsername(),
+            getPassword()
+        ).use { conn ->
+            conn.createStatement().execute("DELETE FROM transactions")
+
+            conn.createStatement().execute(result.summaryTable)
+            result.triggers["insert"]?.let { conn.createStatement().execute(it) }
+            result.triggers["update"]?.let { conn.createStatement().execute(it) }
+            result.triggers["delete"]?.let { conn.createStatement().execute(it) }
+
+            Transactions().seed(10)
+
+            val originalTableQuery = conn.createStatement()
+                .executeQuery(query)
+
+            val summaryTableQuery = conn.createStatement()
+                .executeQuery("SELECT * FROM transactions_user_id_summary")
+
+            while (originalTableQuery.next()) {
+                summaryTableQuery.next()
+                val originalUserId = originalTableQuery.getString("user_id")
+                val originalCost = originalTableQuery.getString("total_cost")
+                val summaryUserId = summaryTableQuery.getString("user_id")
+                val summaryTotalCost = summaryTableQuery.getString("total_cost")
+
+                assertEquals(originalUserId, summaryUserId)
+                assertEquals(originalCost, summaryTotalCost)
+            }
         }
     }
 }
