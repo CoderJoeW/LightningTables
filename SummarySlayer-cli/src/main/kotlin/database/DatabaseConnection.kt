@@ -35,6 +35,20 @@ abstract class Table(val tableName: String) {
         }
     }
 
+    fun delete(where: Map<String, Any?>) {
+        val connection = DatabaseConnection.getConnection() ?: throw Exception("Database not initialized")
+
+        val conditions = where.keys.joinToString(" AND ") { "$it = ?" }
+        val sql = "DELETE FROM $tableName WHERE $conditions"
+
+        connection.prepareStatement(sql).use { statement ->
+            where.values.forEachIndexed { index, value ->
+                statement.setObject(index + 1, value)
+            }
+            statement.executeUpdate()
+        }
+    }
+
     fun lock(lockType: LockType = LockType.WRITE) {
         val connection = DatabaseConnection.getConnection()
         connection!!.createStatement().execute("LOCK TABLES $tableName ${lockType.name}")
