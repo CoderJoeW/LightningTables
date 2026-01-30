@@ -1,19 +1,21 @@
 package com.coderjoe
-import com.coderjoe.database.seeders.Transactions
+import com.coderjoe.database.TransactionsRepository
+import com.coderjoe.database.seeders.TransactionsSeeder
 import com.coderjoe.services.SummaryTriggerGeneratorSqlParser
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.use
 
-class IntegrationTest: DockerComposeTestBase() {
+class IntegrationTest : DockerComposeTestBase() {
     val parser = SummaryTriggerGeneratorSqlParser()
 
     @Test
     fun `sanity check - can query seeded user data`() {
         connect().use { conn ->
-            val result = conn.createStatement()
-                .executeQuery("SELECT first_name, last_name FROM users WHERE first_name = 'John'")
+            val result =
+                conn.createStatement()
+                    .executeQuery("SELECT first_name, last_name FROM users WHERE first_name = 'John'")
 
             assertTrue(result.next(), "Should find John Doe in seeded data")
             assertEquals("John", result.getString("first_name"))
@@ -35,10 +37,11 @@ class IntegrationTest: DockerComposeTestBase() {
 
             val specs = conn.getColumnSpecs(tableName)
 
-            val expected = mapOf(
-                "user_id" to ColumnSpec(typeName = "INT", size = 10, decimalDigits = 0, nullable = false),
-                "total_cost" to ColumnSpec(typeName = "DECIMAL", size = 10, decimalDigits = 2, nullable = false)
-            )
+            val expected =
+                mapOf(
+                    "user_id" to ColumnSpec(typeName = "INT", size = 10, decimalDigits = 0, nullable = false),
+                    "total_cost" to ColumnSpec(typeName = "DECIMAL", size = 10, decimalDigits = 2, nullable = false),
+                )
 
             assertEquals(expected, specs, "Column specs should match")
 
@@ -59,13 +62,14 @@ class IntegrationTest: DockerComposeTestBase() {
             result.triggers["update"]?.let { conn.createStatement().execute(it) }
             result.triggers["delete"]?.let { conn.createStatement().execute(it) }
 
-            val triggerQuery = """
+            val triggerQuery =
+                """
                 SELECT TRIGGER_NAME, EVENT_MANIPULATION 
                 FROM INFORMATION_SCHEMA.TRIGGERS 
                 WHERE TRIGGER_SCHEMA = DATABASE() 
                 AND EVENT_OBJECT_TABLE = 'transactions'
                 ORDER BY TRIGGER_NAME
-            """.trimIndent()
+                """.trimIndent()
 
             val triggerResult = conn.createStatement().executeQuery(triggerQuery)
             val triggers = mutableMapOf<String, String>()
@@ -80,17 +84,17 @@ class IntegrationTest: DockerComposeTestBase() {
 
             assertTrue(
                 triggers.any { it.key.contains("insert", ignoreCase = true) && it.value == "INSERT" },
-                "Should have an INSERT trigger"
+                "Should have an INSERT trigger",
             )
 
             assertTrue(
                 triggers.any { it.key.contains("update", ignoreCase = true) && it.value == "UPDATE" },
-                "Should have an UPDATE trigger"
+                "Should have an UPDATE trigger",
             )
 
             assertTrue(
                 triggers.any { it.key.contains("delete", ignoreCase = true) && it.value == "DELETE" },
-                "Should have a DELETE trigger"
+                "Should have a DELETE trigger",
             )
         }
     }
@@ -107,13 +111,15 @@ class IntegrationTest: DockerComposeTestBase() {
             result.triggers["update"]?.let { conn.createStatement().execute(it) }
             result.triggers["delete"]?.let { conn.createStatement().execute(it) }
 
-            Transactions().seed(1)
+            TransactionsSeeder().seed(1)
 
-            val originalTableQuery = conn.createStatement()
-                .executeQuery(queries["sumCostByUser"]!!)
+            val originalTableQuery =
+                conn.createStatement()
+                    .executeQuery(queries["sumCostByUser"]!!)
 
-            val summaryTableQuery = conn.createStatement()
-                .executeQuery("SELECT * FROM transactions_user_id_summary")
+            val summaryTableQuery =
+                conn.createStatement()
+                    .executeQuery("SELECT * FROM transactions_user_id_summary")
 
             while (originalTableQuery.next()) {
                 summaryTableQuery.next()
@@ -140,15 +146,17 @@ class IntegrationTest: DockerComposeTestBase() {
             result.triggers["update"]?.let { conn.createStatement().execute(it) }
             result.triggers["delete"]?.let { conn.createStatement().execute(it) }
 
-            Transactions().seed(10)
+            TransactionsSeeder().seed(10)
 
-            com.coderjoe.database.Transactions().delete(mapOf("user_id" to 1))
+            TransactionsRepository().delete(userId = 1)
 
-            val originalTableQuery = conn.createStatement()
-                .executeQuery(queries["sumCostByUser"]!!)
+            val originalTableQuery =
+                conn.createStatement()
+                    .executeQuery(queries["sumCostByUser"]!!)
 
-            val summaryTableQuery = conn.createStatement()
-                .executeQuery("SELECT * FROM transactions_user_id_summary")
+            val summaryTableQuery =
+                conn.createStatement()
+                    .executeQuery("SELECT * FROM transactions_user_id_summary")
 
             while (originalTableQuery.next()) {
                 summaryTableQuery.next()
