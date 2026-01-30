@@ -4,7 +4,6 @@ import com.coderjoe.services.SummaryTriggerGeneratorSqlParser
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.sql.DriverManager
 import kotlin.use
 
 class IntegrationTest: DockerComposeTestBase() {
@@ -19,11 +18,7 @@ class IntegrationTest: DockerComposeTestBase() {
 
     @Test
     fun `sanity check - can query seeded user data`() {
-        DriverManager.getConnection(
-            getJdbcUrl(),
-            getUsername(),
-            getPassword()
-        ).use { conn ->
+        connect().use { conn ->
             val result = conn.createStatement()
                 .executeQuery("SELECT first_name, last_name FROM users WHERE first_name = 'John'")
 
@@ -37,11 +32,7 @@ class IntegrationTest: DockerComposeTestBase() {
     fun `creating summary table has valid structure`() {
         val result = parser.generate(query)
 
-        DriverManager.getConnection(
-            getJdbcUrl(),
-            getUsername(),
-            getPassword()
-        ).use { conn ->
+        connect().use { conn ->
             conn.createStatement().execute(result.summaryTable)
 
             val metadata = conn.metaData
@@ -90,11 +81,7 @@ class IntegrationTest: DockerComposeTestBase() {
     fun `all three triggers are created successfully`() {
         val result = parser.generate(query)
 
-        DriverManager.getConnection(
-            getJdbcUrl(),
-            getUsername(),
-            getPassword()
-        ).use { conn ->
+        connect().use { conn ->
             conn.createStatement().execute(result.summaryTable)
 
             result.triggers["insert"]?.let { conn.createStatement().execute(it) }
@@ -141,11 +128,7 @@ class IntegrationTest: DockerComposeTestBase() {
     fun `original table and summary table match after a single insert`() {
         val result = parser.generate(query)
 
-        DriverManager.getConnection(
-            getJdbcUrl(),
-            getUsername(),
-            getPassword()
-        ).use { conn ->
+        connect().use { conn ->
             conn.createStatement().execute("DELETE FROM transactions")
 
             conn.createStatement().execute(result.summaryTable)
