@@ -592,4 +592,478 @@ class TriggerGeneratorTest {
 
         assertEquals(expected, result)
     }
+
+    // --- buildUpdateTrigger tests ---
+
+    @Test
+    fun `buildUpdateTrigger with simple predicates and upserts`() {
+        val oldUpsertStatement =
+            """
+            INSERT INTO summary_table (user_id, total_amount)
+            VALUES (OLD.user_id, -(OLD.amount))
+            ON DUPLICATE KEY UPDATE total_amount = total_amount - OLD.amount;
+            """.trimIndent()
+
+        val newUpsertStatement =
+            """
+            INSERT INTO summary_table (user_id, total_amount)
+            VALUES (NEW.user_id, NEW.amount)
+            ON DUPLICATE KEY UPDATE total_amount = total_amount + NEW.amount;
+            """.trimIndent()
+
+        val cleanupStatement =
+            "DELETE FROM summary_table WHERE user_id = OLD.user_id AND NOT EXISTS (SELECT 1 FROM transactions WHERE user_id = OLD.user_id);"
+
+        val result =
+            triggerGenerator.buildUpdateTrigger(
+                tableName = "summary_table",
+                baseTableName = "transactions",
+                oldPredicate = "1",
+                oldUpsertStatement = oldUpsertStatement,
+                newPredicate = "1",
+                newUpsertStatement = newUpsertStatement,
+                cleanupStatement = cleanupStatement,
+            )
+
+        val expected =
+            """
+                        CREATE TRIGGER `summary_table_after_update_summary`
+                        AFTER UPDATE ON `transactions`
+                        FOR EACH ROW
+                        BEGIN
+                            IF 1 THEN
+                                INSERT INTO summary_table (user_id, total_amount)
+            VALUES (OLD.user_id, -(OLD.amount))
+            ON DUPLICATE KEY UPDATE total_amount = total_amount - OLD.amount;
+                                DELETE FROM summary_table WHERE user_id = OLD.user_id AND NOT EXISTS (SELECT 1 FROM transactions WHERE user_id = OLD.user_id);
+                            END IF;
+
+                            IF 1 THEN
+                                INSERT INTO summary_table (user_id, total_amount)
+            VALUES (NEW.user_id, NEW.amount)
+            ON DUPLICATE KEY UPDATE total_amount = total_amount + NEW.amount;
+                            END IF;
+                        END;
+            """.trimIndent()
+
+        assertEquals(expected, result)
+    }
+
+    @Test
+    fun `buildUpdateTrigger with conditional predicates`() {
+        val oldUpsertStatement =
+            """
+            INSERT INTO user_stats (user_id, high_value_count)
+            VALUES (OLD.user_id, -1)
+            ON DUPLICATE KEY UPDATE high_value_count = high_value_count - 1;
+            """.trimIndent()
+
+        val newUpsertStatement =
+            """
+            INSERT INTO user_stats (user_id, high_value_count)
+            VALUES (NEW.user_id, 1)
+            ON DUPLICATE KEY UPDATE high_value_count = high_value_count + 1;
+            """.trimIndent()
+
+        val cleanupStatement =
+            "DELETE FROM user_stats WHERE user_id = OLD.user_id AND NOT EXISTS (SELECT 1 FROM orders WHERE user_id = OLD.user_id);"
+
+        val result =
+            triggerGenerator.buildUpdateTrigger(
+                tableName = "user_stats",
+                baseTableName = "orders",
+                oldPredicate = "OLD.amount > 1000",
+                oldUpsertStatement = oldUpsertStatement,
+                newPredicate = "NEW.amount > 1000",
+                newUpsertStatement = newUpsertStatement,
+                cleanupStatement = cleanupStatement,
+            )
+
+        val expected =
+            """
+                        CREATE TRIGGER `user_stats_after_update_summary`
+                        AFTER UPDATE ON `orders`
+                        FOR EACH ROW
+                        BEGIN
+                            IF OLD.amount > 1000 THEN
+                                INSERT INTO user_stats (user_id, high_value_count)
+            VALUES (OLD.user_id, -1)
+            ON DUPLICATE KEY UPDATE high_value_count = high_value_count - 1;
+                                DELETE FROM user_stats WHERE user_id = OLD.user_id AND NOT EXISTS (SELECT 1 FROM orders WHERE user_id = OLD.user_id);
+                            END IF;
+
+                            IF NEW.amount > 1000 THEN
+                                INSERT INTO user_stats (user_id, high_value_count)
+            VALUES (NEW.user_id, 1)
+            ON DUPLICATE KEY UPDATE high_value_count = high_value_count + 1;
+                            END IF;
+                        END;
+            """.trimIndent()
+
+        assertEquals(expected, result)
+    }
+
+    @Test
+    fun `buildUpdateTrigger with multiple key columns`() {
+        val oldUpsertStatement =
+            """
+            INSERT INTO product_summary (product_id, category_id, total_revenue)
+            VALUES (OLD.product_id, OLD.category_id, -(OLD.price))
+            ON DUPLICATE KEY UPDATE total_revenue = total_revenue - OLD.price;
+            """.trimIndent()
+
+        val newUpsertStatement =
+            """
+            INSERT INTO product_summary (product_id, category_id, total_revenue)
+            VALUES (NEW.product_id, NEW.category_id, NEW.price)
+            ON DUPLICATE KEY UPDATE total_revenue = total_revenue + NEW.price;
+            """.trimIndent()
+
+        val cleanupStatement =
+            "DELETE FROM product_summary WHERE product_id = OLD.product_id AND category_id = OLD.category_id AND NOT EXISTS (SELECT 1 FROM sales WHERE product_id = OLD.product_id AND category_id = OLD.category_id);"
+
+        val result =
+            triggerGenerator.buildUpdateTrigger(
+                tableName = "product_summary",
+                baseTableName = "sales",
+                oldPredicate = "1",
+                oldUpsertStatement = oldUpsertStatement,
+                newPredicate = "1",
+                newUpsertStatement = newUpsertStatement,
+                cleanupStatement = cleanupStatement,
+            )
+
+        val expected =
+            """
+                        CREATE TRIGGER `product_summary_after_update_summary`
+                        AFTER UPDATE ON `sales`
+                        FOR EACH ROW
+                        BEGIN
+                            IF 1 THEN
+                                INSERT INTO product_summary (product_id, category_id, total_revenue)
+            VALUES (OLD.product_id, OLD.category_id, -(OLD.price))
+            ON DUPLICATE KEY UPDATE total_revenue = total_revenue - OLD.price;
+                                DELETE FROM product_summary WHERE product_id = OLD.product_id AND category_id = OLD.category_id AND NOT EXISTS (SELECT 1 FROM sales WHERE product_id = OLD.product_id AND category_id = OLD.category_id);
+                            END IF;
+
+                            IF 1 THEN
+                                INSERT INTO product_summary (product_id, category_id, total_revenue)
+            VALUES (NEW.product_id, NEW.category_id, NEW.price)
+            ON DUPLICATE KEY UPDATE total_revenue = total_revenue + NEW.price;
+                            END IF;
+                        END;
+            """.trimIndent()
+
+        assertEquals(expected, result)
+    }
+
+    @Test
+    fun `buildUpdateTrigger with special characters in table names`() {
+        val oldUpsertStatement =
+            """
+            INSERT INTO `user-summary` (`user-id`, `total`)
+            VALUES (OLD.`user-id`, -(OLD.amount))
+            ON DUPLICATE KEY UPDATE `total` = `total` - OLD.amount;
+            """.trimIndent()
+
+        val newUpsertStatement =
+            """
+            INSERT INTO `user-summary` (`user-id`, `total`)
+            VALUES (NEW.`user-id`, NEW.amount)
+            ON DUPLICATE KEY UPDATE `total` = `total` + NEW.amount;
+            """.trimIndent()
+
+        val cleanupStatement =
+            "DELETE FROM `user-summary` WHERE `user-id` = OLD.`user-id` AND NOT EXISTS (SELECT 1 FROM `user-transactions` WHERE `user-id` = OLD.`user-id`);"
+
+        val result =
+            triggerGenerator.buildUpdateTrigger(
+                tableName = "user-summary",
+                baseTableName = "user-transactions",
+                oldPredicate = "OLD.`user-id` > 0",
+                oldUpsertStatement = oldUpsertStatement,
+                newPredicate = "NEW.`user-id` > 0",
+                newUpsertStatement = newUpsertStatement,
+                cleanupStatement = cleanupStatement,
+            )
+
+        val expected =
+            """
+                        CREATE TRIGGER `user-summary_after_update_summary`
+                        AFTER UPDATE ON `user-transactions`
+                        FOR EACH ROW
+                        BEGIN
+                            IF OLD.`user-id` > 0 THEN
+                                INSERT INTO `user-summary` (`user-id`, `total`)
+            VALUES (OLD.`user-id`, -(OLD.amount))
+            ON DUPLICATE KEY UPDATE `total` = `total` - OLD.amount;
+                                DELETE FROM `user-summary` WHERE `user-id` = OLD.`user-id` AND NOT EXISTS (SELECT 1 FROM `user-transactions` WHERE `user-id` = OLD.`user-id`);
+                            END IF;
+
+                            IF NEW.`user-id` > 0 THEN
+                                INSERT INTO `user-summary` (`user-id`, `total`)
+            VALUES (NEW.`user-id`, NEW.amount)
+            ON DUPLICATE KEY UPDATE `total` = `total` + NEW.amount;
+                            END IF;
+                        END;
+            """.trimIndent()
+
+        assertEquals(expected, result)
+    }
+
+    // --- buildDeleteTrigger tests ---
+
+    @Test
+    fun `buildDeleteTrigger with simple predicate and upsert`() {
+        val upsertStatement =
+            """
+            INSERT INTO summary_table (user_id, total_amount)
+            VALUES (OLD.user_id, -(OLD.amount))
+            ON DUPLICATE KEY UPDATE total_amount = total_amount - OLD.amount;
+            """.trimIndent()
+
+        val cleanupStatement =
+            "DELETE FROM summary_table WHERE user_id = OLD.user_id AND NOT EXISTS (SELECT 1 FROM transactions WHERE user_id = OLD.user_id);"
+
+        val result =
+            triggerGenerator.buildDeleteTrigger(
+                tableName = "summary_table",
+                baseTableName = "transactions",
+                predicate = "1",
+                upsertStatement = upsertStatement,
+                cleanupStatement = cleanupStatement,
+            )
+
+        val expected =
+            """
+                        CREATE TRIGGER `summary_table_after_delete_summary`
+                        AFTER DELETE ON `transactions`
+                        FOR EACH ROW
+                        BEGIN
+                            IF 1 THEN
+                                INSERT INTO summary_table (user_id, total_amount)
+            VALUES (OLD.user_id, -(OLD.amount))
+            ON DUPLICATE KEY UPDATE total_amount = total_amount - OLD.amount;
+                                DELETE FROM summary_table WHERE user_id = OLD.user_id AND NOT EXISTS (SELECT 1 FROM transactions WHERE user_id = OLD.user_id);
+                            END IF;
+                        END;
+            """.trimIndent()
+
+        assertEquals(expected, result)
+    }
+
+    @Test
+    fun `buildDeleteTrigger with conditional predicate`() {
+        val upsertStatement =
+            """
+            INSERT INTO user_stats (user_id, high_value_count)
+            VALUES (OLD.user_id, -1)
+            ON DUPLICATE KEY UPDATE high_value_count = high_value_count - 1;
+            """.trimIndent()
+
+        val cleanupStatement =
+            "DELETE FROM user_stats WHERE user_id = OLD.user_id AND NOT EXISTS (SELECT 1 FROM orders WHERE user_id = OLD.user_id);"
+
+        val result =
+            triggerGenerator.buildDeleteTrigger(
+                tableName = "user_stats",
+                baseTableName = "orders",
+                predicate = "OLD.amount > 1000 AND OLD.status = 'completed'",
+                upsertStatement = upsertStatement,
+                cleanupStatement = cleanupStatement,
+            )
+
+        val expected =
+            """
+                        CREATE TRIGGER `user_stats_after_delete_summary`
+                        AFTER DELETE ON `orders`
+                        FOR EACH ROW
+                        BEGIN
+                            IF OLD.amount > 1000 AND OLD.status = 'completed' THEN
+                                INSERT INTO user_stats (user_id, high_value_count)
+            VALUES (OLD.user_id, -1)
+            ON DUPLICATE KEY UPDATE high_value_count = high_value_count - 1;
+                                DELETE FROM user_stats WHERE user_id = OLD.user_id AND NOT EXISTS (SELECT 1 FROM orders WHERE user_id = OLD.user_id);
+                            END IF;
+                        END;
+            """.trimIndent()
+
+        assertEquals(expected, result)
+    }
+
+    @Test
+    fun `buildDeleteTrigger with multiple key columns`() {
+        val upsertStatement =
+            """
+            INSERT INTO product_summary (product_id, category_id, total_revenue)
+            VALUES (OLD.product_id, OLD.category_id, -(OLD.price))
+            ON DUPLICATE KEY UPDATE total_revenue = total_revenue - OLD.price;
+            """.trimIndent()
+
+        val cleanupStatement =
+            "DELETE FROM product_summary WHERE product_id = OLD.product_id AND category_id = OLD.category_id AND NOT EXISTS (SELECT 1 FROM sales WHERE product_id = OLD.product_id AND category_id = OLD.category_id);"
+
+        val result =
+            triggerGenerator.buildDeleteTrigger(
+                tableName = "product_summary",
+                baseTableName = "sales",
+                predicate = "1",
+                upsertStatement = upsertStatement,
+                cleanupStatement = cleanupStatement,
+            )
+
+        val expected =
+            """
+                        CREATE TRIGGER `product_summary_after_delete_summary`
+                        AFTER DELETE ON `sales`
+                        FOR EACH ROW
+                        BEGIN
+                            IF 1 THEN
+                                INSERT INTO product_summary (product_id, category_id, total_revenue)
+            VALUES (OLD.product_id, OLD.category_id, -(OLD.price))
+            ON DUPLICATE KEY UPDATE total_revenue = total_revenue - OLD.price;
+                                DELETE FROM product_summary WHERE product_id = OLD.product_id AND category_id = OLD.category_id AND NOT EXISTS (SELECT 1 FROM sales WHERE product_id = OLD.product_id AND category_id = OLD.category_id);
+                            END IF;
+                        END;
+            """.trimIndent()
+
+        assertEquals(expected, result)
+    }
+
+    @Test
+    fun `buildDeleteTrigger with special characters in table names`() {
+        val upsertStatement =
+            """
+            INSERT INTO `user-summary` (`user-id`, `total`)
+            VALUES (OLD.`user-id`, -(OLD.amount))
+            ON DUPLICATE KEY UPDATE `total` = `total` - OLD.amount;
+            """.trimIndent()
+
+        val cleanupStatement =
+            "DELETE FROM `user-summary` WHERE `user-id` = OLD.`user-id` AND NOT EXISTS (SELECT 1 FROM `user-transactions` WHERE `user-id` = OLD.`user-id`);"
+
+        val result =
+            triggerGenerator.buildDeleteTrigger(
+                tableName = "user-summary",
+                baseTableName = "user-transactions",
+                predicate = "OLD.`user-id` > 0",
+                upsertStatement = upsertStatement,
+                cleanupStatement = cleanupStatement,
+            )
+
+        val expected =
+            """
+                        CREATE TRIGGER `user-summary_after_delete_summary`
+                        AFTER DELETE ON `user-transactions`
+                        FOR EACH ROW
+                        BEGIN
+                            IF OLD.`user-id` > 0 THEN
+                                INSERT INTO `user-summary` (`user-id`, `total`)
+            VALUES (OLD.`user-id`, -(OLD.amount))
+            ON DUPLICATE KEY UPDATE `total` = `total` - OLD.amount;
+                                DELETE FROM `user-summary` WHERE `user-id` = OLD.`user-id` AND NOT EXISTS (SELECT 1 FROM `user-transactions` WHERE `user-id` = OLD.`user-id`);
+                            END IF;
+                        END;
+            """.trimIndent()
+
+        assertEquals(expected, result)
+    }
+
+    @Test
+    fun `buildDeleteTrigger with always true predicate`() {
+        val upsertStatement =
+            """
+            INSERT INTO all_records (record_id, count)
+            VALUES (OLD.id, -1)
+            ON DUPLICATE KEY UPDATE count = count - 1;
+            """.trimIndent()
+
+        val cleanupStatement =
+            "DELETE FROM all_records WHERE record_id = OLD.id AND NOT EXISTS (SELECT 1 FROM events WHERE id = OLD.id);"
+
+        val result =
+            triggerGenerator.buildDeleteTrigger(
+                tableName = "all_records",
+                baseTableName = "events",
+                predicate = "TRUE",
+                upsertStatement = upsertStatement,
+                cleanupStatement = cleanupStatement,
+            )
+
+        val expected =
+            """
+                        CREATE TRIGGER `all_records_after_delete_summary`
+                        AFTER DELETE ON `events`
+                        FOR EACH ROW
+                        BEGIN
+                            IF TRUE THEN
+                                INSERT INTO all_records (record_id, count)
+            VALUES (OLD.id, -1)
+            ON DUPLICATE KEY UPDATE count = count - 1;
+                                DELETE FROM all_records WHERE record_id = OLD.id AND NOT EXISTS (SELECT 1 FROM events WHERE id = OLD.id);
+                            END IF;
+                        END;
+            """.trimIndent()
+
+        assertEquals(expected, result)
+    }
+
+    @Test
+    fun `buildDeleteTrigger with multi-line upsert statement`() {
+        val upsertStatement =
+            """
+            INSERT INTO complex_summary (
+                user_id,
+                total_spent,
+                transaction_count
+            )
+            VALUES (
+                OLD.user_id,
+                -(OLD.amount),
+                -1
+            )
+            ON DUPLICATE KEY UPDATE
+                total_spent = total_spent - OLD.amount,
+                transaction_count = transaction_count - 1;
+            """.trimIndent()
+
+        val cleanupStatement =
+            "DELETE FROM complex_summary WHERE user_id = OLD.user_id AND NOT EXISTS (SELECT 1 FROM transactions WHERE user_id = OLD.user_id);"
+
+        val result =
+            triggerGenerator.buildDeleteTrigger(
+                tableName = "complex_summary",
+                baseTableName = "transactions",
+                predicate = "OLD.user_id IS NOT NULL AND OLD.amount > 0",
+                upsertStatement = upsertStatement,
+                cleanupStatement = cleanupStatement,
+            )
+
+        val expected =
+            """
+                        CREATE TRIGGER `complex_summary_after_delete_summary`
+                        AFTER DELETE ON `transactions`
+                        FOR EACH ROW
+                        BEGIN
+                            IF OLD.user_id IS NOT NULL AND OLD.amount > 0 THEN
+                                INSERT INTO complex_summary (
+                user_id,
+                total_spent,
+                transaction_count
+            )
+            VALUES (
+                OLD.user_id,
+                -(OLD.amount),
+                -1
+            )
+            ON DUPLICATE KEY UPDATE
+                total_spent = total_spent - OLD.amount,
+                transaction_count = transaction_count - 1;
+                                DELETE FROM complex_summary WHERE user_id = OLD.user_id AND NOT EXISTS (SELECT 1 FROM transactions WHERE user_id = OLD.user_id);
+                            END IF;
+                        END;
+            """.trimIndent()
+
+        assertEquals(expected, result)
+    }
 }
