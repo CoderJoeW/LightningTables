@@ -1,6 +1,7 @@
 package com.coderjoe
 
 import com.coderjoe.database.DatabaseConfig
+import com.coderjoe.services.BackfillService
 import com.coderjoe.services.SummaryTriggerGeneratorSqlParser
 import com.coderjoe.services.TriggerGeneratorResult
 import org.jetbrains.exposed.v1.core.Table
@@ -46,10 +47,10 @@ fun main() {
 
     createSummaryTable(result)
     println("Summary table generated successfully.")
-    createTriggers(result)
-    println("Triggers generated successfully.")
 
     println("Starting backfill of data")
+    BackfillService().backfill(result.backfillContext, result.triggers.values.toList())
+    println("Triggers generated and backfill complete.")
 }
 
 fun createSummaryTable(result: TriggerGeneratorResult) {
