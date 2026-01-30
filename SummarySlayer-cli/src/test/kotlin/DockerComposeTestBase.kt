@@ -7,6 +7,13 @@ import org.junit.jupiter.api.BeforeEach
 import java.io.File
 import java.sql.DriverManager
 
+data class ColumnSpec(
+    val typeName: String,
+    val size: Int,
+    val decimalDigits: Int?,
+    val nullable: Boolean
+)
+
 /**
  * Base class for integration tests that automatically manages a docker-compose MariaDB container.
  *
@@ -112,12 +119,11 @@ abstract class DockerComposeTestBase {
             )
         }
 
-        fun getJdbcUrl(): String = JDBC_URL
-        fun getUsername(): String = USERNAME
-        fun getPassword(): String = PASSWORD
+        fun connect(): java.sql.Connection =
+            DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD)
 
         fun executeSQL(sql: String) {
-            DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD).use { connection ->
+            connect().use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute(sql)
                 }
@@ -125,7 +131,7 @@ abstract class DockerComposeTestBase {
         }
 
         fun cleanDatabase() {
-            DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD).use { connection ->
+            connect().use { connection ->
                 connection.createStatement().use { statement ->
                     // Drop any triggers and summary tables left by previous tests
                     statement.execute("DROP TRIGGER IF EXISTS transactions_after_insert_summary")
@@ -145,7 +151,7 @@ abstract class DockerComposeTestBase {
          * Seed the database with test data using plain JDBC
          */
         fun reseedDatabase() {
-            DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD).use { connection ->
+            connect().use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute("INSERT INTO users (first_name, last_name) VALUES ('John', 'Doe')")
                     statement.execute("INSERT INTO users (first_name, last_name) VALUES ('Jane', 'Smith')")
@@ -171,4 +177,22 @@ abstract class DockerComposeTestBase {
         cleanDatabase()
         reseedDatabase()
     }
+
+    fun java.sql.Connection.getColumnSpecs(tableName: String): Map<String, ColumnSpec> {
+        val columns = metaData.getColumns(null, null, tableName, null)
+        return buildMap {
+            while (columns.next()) {
+                put(
+                    columns.getString("COLUMN_NAME"),
+                    ColumnSpec(
+                        typeName = columns.getString("TYPE_NAME"),
+                        size = columns.getInt("COLUMN_SIZE"),
+                        decimalDigits = columns.getInt("DECIMAL_DIGITS").takeIf { !columns.wasNull() },
+                        nullable = columns.getInt("NULLABLE") == java.sql.DatabaseMetaData.columnNullable
+                    )
+                )
+            }
+        }
+    }
 }
+
