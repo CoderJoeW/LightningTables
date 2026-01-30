@@ -1,26 +1,28 @@
 package com.coderjoe
 import com.coderjoe.database.TransactionsRepository
+import com.coderjoe.database.UsersTable
 import com.coderjoe.database.seeders.TransactionsSeeder
 import com.coderjoe.services.SummaryTriggerGeneratorSqlParser
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import kotlin.use
 
 class IntegrationTest : DockerComposeTestBase() {
     val parser = SummaryTriggerGeneratorSqlParser()
 
     @Test
     fun `sanity check - can query seeded user data`() {
-        connect().use { conn ->
-            val result =
-                conn.createStatement()
-                    .executeQuery("SELECT first_name, last_name FROM users WHERE first_name = 'John'")
-
-            assertTrue(result.next(), "Should find John Doe in seeded data")
-            assertEquals("John", result.getString("first_name"))
-            assertEquals("Doe", result.getString("last_name"))
+        val row = transaction {
+            UsersTable.selectAll()
+                .where { UsersTable.firstName eq "John" }
+                .single()
         }
+
+        assertEquals("John", row[UsersTable.firstName])
+        assertEquals("Doe", row[UsersTable.lastName])
     }
 
     @Test
