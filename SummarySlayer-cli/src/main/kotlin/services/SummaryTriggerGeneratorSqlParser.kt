@@ -499,13 +499,33 @@ class SummaryTriggerGeneratorSqlParser {
             upsertComponents.newUpdateExpressions
         )
 
+        val cleanupStatement = buildCleanupStatement(
+            summaryTableName,
+            baseTableName,
+            upsertComponents.keyColumns,
+            upsertComponents.keyOldExpressions
+        )
+
         val sanitizedTableName = sanitizeIdentifier(baseTableName)
 
         return mapOf(
             "insert" to TriggerGenerator().buildInsertTrigger(sanitizedTableName, baseTableName, newRowPredicate, newUpsertStatement),
-            "update" to TriggerGenerator().buildUpdateTrigger(sanitizedTableName, baseTableName, oldRowPredicate, oldUpsertStatement, newRowPredicate, newUpsertStatement),
-            "delete" to TriggerGenerator().buildDeleteTrigger(sanitizedTableName, baseTableName, oldRowPredicate, oldUpsertStatement)
+            "update" to TriggerGenerator().buildUpdateTrigger(sanitizedTableName, baseTableName, oldRowPredicate, oldUpsertStatement, newRowPredicate, newUpsertStatement, cleanupStatement),
+            "delete" to TriggerGenerator().buildDeleteTrigger(sanitizedTableName, baseTableName, oldRowPredicate, oldUpsertStatement, cleanupStatement)
         )
+    }
+
+    private fun buildCleanupStatement(
+        summaryTableName: String,
+        baseTableName: String,
+        keyColumns: List<String>,
+        keyOldExpressions: List<String>
+    ): String {
+        val summaryWhereClause = keyColumns.zip(keyOldExpressions)
+            .joinToString(" AND ") { (col, oldExpr) -> "$col = $oldExpr" }
+        val existsWhereClause = keyColumns.zip(keyOldExpressions)
+            .joinToString(" AND ") { (col, oldExpr) -> "$col = $oldExpr" }
+        return "DELETE FROM `$summaryTableName` WHERE $summaryWhereClause AND NOT EXISTS (SELECT 1 FROM `$baseTableName` WHERE $existsWhereClause);"
     }
 
     private fun formatPreview(tableDdl: String, triggers: Map<String, String>): String {
