@@ -3,6 +3,7 @@ package com.coderjoe.services
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.sql.Timestamp
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 private const val TIMESTAMP_COLUMN = "updated_at"
 
@@ -11,7 +12,11 @@ class BackfillService(
     private val threadCount: Int = 4
 ) {
 
-    fun backfill(context: BackfillContext, triggerStatements: List<String>) {
+    fun backfill(
+        context: BackfillContext,
+        triggerStatements: List<String>,
+        onProgress: ((completed: Int, total: Int) -> Unit)? = null,
+    ) {
         val primaryKeyColumn = detectPrimaryKey(context.baseTableName)
         validateUpdatedAtColumn(context.baseTableName)
 
@@ -22,7 +27,7 @@ class BackfillService(
         }
 
         val sql = buildBackfillSql(context, primaryKeyColumn)
-        processChunks(snapshot, sql)
+        processChunks(snapshot, sql, onProgress)
     }
 
     private data class BackfillSnapshot(
@@ -175,7 +180,11 @@ class BackfillService(
         """.trimIndent()
     }
 
-    private fun processChunks(snapshot: BackfillSnapshot, sql: String) {
+    private fun processChunks(
+        snapshot: BackfillSnapshot,
+        sql: String,
+        onProgress: ((completed: Int, total: Int) -> Unit)?,
+    ) {
         val executor = Executors.newFixedThreadPool(threadCount)
         val chunks = mutableListOf<Pair<Long, Long>>()
 
@@ -187,9 +196,9 @@ class BackfillService(
         }
 
         val totalChunks = chunks.size
-        println("Processing $totalChunks chunks (PK range ${snapshot.minPk}..${snapshot.maxPk}, chunk size $chunkSize)")
+        val completedChunks = AtomicInteger(0)
 
-        val futures = chunks.mapIndexed { index, (start, end) ->
+        val futures = chunks.map { (start, end) ->
             executor.submit<Unit> {
                 transaction {
                     val conn = this.connection.connection as java.sql.Connection
@@ -200,7 +209,8 @@ class BackfillService(
                         stmt.executeUpdate()
                     }
                 }
-                println("  Chunk ${index + 1}/$totalChunks done (PK $start..$end)")
+                val done = completedChunks.incrementAndGet()
+                onProgress?.invoke(done, totalChunks)
             }
         }
 
