@@ -1,8 +1,6 @@
 package com.coderjoe
 
-import com.coderjoe.database.DatabaseConfig
-import com.coderjoe.services.BackfillService
-import com.coderjoe.services.SummaryTriggerGeneratorSqlParser
+import com.coderjoe.services.LightningTableTriggerGeneratorSqlParser
 import com.coderjoe.services.TriggerGeneratorResult
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.jdbc.batchInsert
@@ -11,65 +9,13 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
-val query =
-    """
-    SELECT user_id, SUM(cost) as total_cost
-    FROM transactions
-    GROUP BY user_id
-    """.trimIndent()
-
-val parser = SummaryTriggerGeneratorSqlParser()
-
 fun main() {
-    println("Enter database host (e.g., localhost:3306):")
-    val host = readln().ifEmpty { "localhost" }
-    println("Enter database port:")
-    val port = readln().ifEmpty { "3306" }
-    println("Enter database username:")
-    val username = readln().ifEmpty { "root" }
-    println("Enter database password:")
-    val password = readln().ifEmpty { "rootpassword" }
-    println("Enter database name:")
-    val dbName = readln().ifEmpty { "summaryslayer" }
-
-    DatabaseConfig.initialize(
-        url = "jdbc:mariadb://$host:$port/$dbName",
-        username = username,
-        password = password,
-    )
-
-    println("Database connected successfully.")
-
-    println("Enter query: ")
-    val originalQuery = readln().ifEmpty { query }
-
-    val result = parser.generate(originalQuery)
-
-    createSummaryTable(result)
-    println("Summary table generated successfully.")
-
-    println("Starting backfill of data")
-    BackfillService().backfill(result.backfillContext, result.triggers.values.toList())
-    println("Triggers generated and backfill complete.")
-}
-
-fun createSummaryTable(result: TriggerGeneratorResult) {
-    transaction {
-        exec(result.summaryTable)
-    }
-}
-
-fun createTriggers(result: TriggerGeneratorResult) {
-    transaction {
-        result.triggers.values.forEach { triggerSql ->
-            exec(triggerSql)
-        }
-    }
+    Demo().run()
 }
 
 fun seed(recordCount: Int) {
     val batchSize = 5_000
-    val threadCount = 10
+    val threadCount = 4
     val startTime = System.currentTimeMillis()
     val insertedCount = AtomicInteger(0)
 
@@ -78,7 +24,7 @@ fun seed(recordCount: Int) {
         executor.submit {
             transaction {
                 TransactionsTable.batchInsert(batch) {
-                    this[TransactionsTable.userId] = 1
+                    this[TransactionsTable.userId] = Random.nextInt(1, 5)
                     this[TransactionsTable.type] = TransactionType.DEBIT.name
                     this[TransactionsTable.service] = TransactionService.entries.random().name
                     this[TransactionsTable.cost] = Random.nextDouble(0.01, 2.0)
@@ -121,10 +67,9 @@ enum class TransactionService {
     DATA,
 }
 
-fun testSummaryGen() {
-    val parser = SummaryTriggerGeneratorSqlParser()
+fun testLightningTableGen() {
+    val parser = LightningTableTriggerGeneratorSqlParser()
 
-    // Example query with GROUP BY
     val query =
         """
         SELECT user_id, SUM(cost) as total_cost
@@ -135,8 +80,8 @@ fun testSummaryGen() {
     try {
         val result = parser.generate(query)
 
-        println("=== Generated Summary Table DDL ===")
-        println(result.summaryTable)
+        println("=== Generated Lightning Table DDL ===")
+        println(result.lightningTable)
         println()
 
         println("=== Generated Triggers ===")
