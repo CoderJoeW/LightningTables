@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.coderjoe</groupId>
-    <artifactId>SummarySlayer-cli</artifactId>
+    <artifactId>lightning-tables-cli</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
@@ -77,7 +77,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>1.6.0</version>
                 <configuration>
-                    <mainClass>MainKt</mainClass>
+                    <mainClass>com.coderjoe.MainKt</mainClass>
                 </configuration>
             </plugin>
             <plugin>
@@ -175,6 +175,11 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
             <version>2.0.16</version>
+        </dependency>
+        <dependency>
+            <groupId>com.googlecode.lanterna</groupId>
+            <artifactId>lanterna</artifactId>
+            <version>3.1.2</version>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
