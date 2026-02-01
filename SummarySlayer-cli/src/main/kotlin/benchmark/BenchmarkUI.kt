@@ -34,6 +34,13 @@ class BenchmarkUI {
         drawHorizontalSeparator(tg, w, row)
         row += 1
 
+        // Draw speedup indicator between the stats and query labels
+        drawSpeedupIndicator(tg, w, row, left, right)
+        row += 1
+
+        drawHorizontalSeparator(tg, w, row)
+        row += 1
+
         drawQueryLabels(tg, w, midCol, row, originalQuery, lightningQuery)
         row += 1
 
@@ -120,7 +127,55 @@ class BenchmarkUI {
         tg.putString(col, r++, "Min        : ${fmtMs(snap.minTimeMs)}")
         tg.putString(col, r++, "Max        : ${fmtMs(snap.maxTimeMs)}")
         tg.putString(col, r++, "Rows       : ${snap.rowCount}")
+
+        // Add adaptive throughput metric
+        if (snap.avgTimeMs > 0 && snap.totalRuns > 0) {
+            val throughput = formatThroughput(snap.avgTimeMs)
+            tg.putString(col, r++, "Throughput : $throughput")
+        }
+
         return r
+    }
+
+    private fun drawSpeedupIndicator(
+        tg: TextGraphics,
+        width: Int,
+        row: Int,
+        left: StatsSnapshot,
+        right: StatsSnapshot,
+    ) {
+        if (left.avgTimeMs > 0 && right.avgTimeMs > 0 && left.totalRuns > 0 && right.totalRuns > 0) {
+            val speedup = left.avgTimeMs / right.avgTimeMs
+            val savedMs = left.avgTimeMs - right.avgTimeMs
+
+            val text = when {
+                speedup > 1.1 -> {
+                    val speedupStr = "%.1f".format(speedup)
+                    val savedStr = if (savedMs >= 1000) {
+                        "${"%.2f".format(savedMs / 1000)}s"
+                    } else {
+                        "${savedMs.toInt()}ms"
+                    }
+                    "⚡ ${speedupStr}x faster | Saving $savedStr per query"
+                }
+                speedup < 0.9 -> {
+                    val slowerBy = "%.1f".format(1 / speedup)
+                    "⚠ ${slowerBy}x slower"
+                }
+                else -> "≈ Similar performance"
+            }
+
+            tg.foregroundColor = when {
+                speedup > 2.0 -> TextColor.ANSI.GREEN
+                speedup > 1.1 -> TextColor.ANSI.YELLOW
+                else -> TextColor.ANSI.RED
+            }
+            tg.enableModifiers(SGR.BOLD)
+            val startCol = maxOf(0, (width - text.length) / 2)
+            tg.putString(startCol, row, text)
+            tg.disableModifiers(SGR.BOLD)
+            tg.foregroundColor = TextColor.ANSI.DEFAULT
+        }
     }
 
     private fun drawHorizontalSeparator(tg: TextGraphics, width: Int, row: Int) {
@@ -224,12 +279,58 @@ class BenchmarkUI {
         println("  Records seeded : %,d".format(totalRecordsSeeded))
         println()
 
+        // Calculate speedup metrics
+        if (left.avgTimeMs > 0 && right.avgTimeMs > 0 && left.totalRuns > 0 && right.totalRuns > 0) {
+            val speedup = left.avgTimeMs / right.avgTimeMs
+            val percentFaster = ((left.avgTimeMs - right.avgTimeMs) / left.avgTimeMs * 100)
+            val savedMs = left.avgTimeMs - right.avgTimeMs
+
+            println("  " + "=".repeat(60))
+            when {
+                speedup > 1.1 -> {
+                    println("  ⚡ RESULT: Lightning Table is ${"%.1f".format(speedup)}x faster!")
+                    println("  Performance improvement: ${"%.1f".format(percentFaster)}%")
+
+                    val savedStr = if (savedMs >= 1000) {
+                        "${"%.2f".format(savedMs / 1000)}s"
+                    } else {
+                        "${savedMs.toInt()}ms"
+                    }
+                    println("  Time saved per query: $savedStr")
+                }
+                speedup < 0.9 -> {
+                    println("  ⚠ WARNING: Lightning Table is ${"%.1f".format(1 / speedup)}x slower")
+                }
+                else -> {
+                    println("  ≈ Similar performance between original and lightning table")
+                }
+            }
+            println("  " + "=".repeat(60))
+            println()
+
+            // Real-world impact for 1000 queries
+            if (speedup > 1.1) {
+                val originalTotal = left.avgTimeMs * 1000
+                val lightningTotal = right.avgTimeMs * 1000
+                val timeSaved = originalTotal - lightningTotal
+
+                println("  Real-World Impact (1,000 queries):")
+                println("    Original  : ${formatDuration(originalTotal)}")
+                println("    Lightning : ${formatDuration(lightningTotal)}")
+                println("    Time Saved: ${formatDuration(timeSaved)}")
+                println()
+            }
+        }
+
         println("  Original Query")
         println("    Executions : ${left.totalRuns}")
         println("    Avg time   : ${"%.2f".format(left.avgTimeMs)} ms")
         println("    Min time   : ${fmtMs(left.minTimeMs)}")
         println("    Max time   : ${fmtMs(left.maxTimeMs)}")
         println("    Rows       : ${left.rowCount}")
+        if (left.avgTimeMs > 0) {
+            println("    Throughput : ${formatThroughput(left.avgTimeMs)}")
+        }
         println()
 
         println("  Lightning Table ($lightningTableName)")
@@ -238,6 +339,9 @@ class BenchmarkUI {
         println("    Min time   : ${fmtMs(right.minTimeMs)}")
         println("    Max time   : ${fmtMs(right.maxTimeMs)}")
         println("    Rows       : ${right.rowCount}")
+        if (right.avgTimeMs > 0) {
+            println("    Throughput : ${formatThroughput(right.avgTimeMs)}")
+        }
         println()
         println("  " + "=".repeat(60))
     }
@@ -249,6 +353,32 @@ class BenchmarkUI {
         val m = (totalSecs % 3600) / 60
         val s = totalSecs % 60
         return "%02d:%02d:%02d".format(h, m, s)
+    }
+
+    private fun formatThroughput(avgTimeMs: Double): String {
+        return when {
+            avgTimeMs < 1000 -> "${"%.1f".format(1000.0 / avgTimeMs)}/sec"
+            avgTimeMs < 60000 -> "${"%.1f".format(60000.0 / avgTimeMs)}/min"
+            else -> "${"%.1f".format(3600000.0 / avgTimeMs)}/hr"
+        }
+    }
+
+    private fun formatDuration(totalMs: Double): String {
+        val totalSecs = totalMs / 1000
+        return when {
+            totalSecs < 60 -> "${"%.1f".format(totalSecs)}s"
+            totalSecs < 3600 -> {
+                val mins = (totalSecs / 60).toInt()
+                val secs = (totalSecs % 60).toInt()
+                "${mins}m ${secs}s"
+            }
+            else -> {
+                val hours = (totalSecs / 3600).toInt()
+                val mins = ((totalSecs % 3600) / 60).toInt()
+                val secs = (totalSecs % 60).toInt()
+                "${hours}h ${mins}m ${secs}s"
+            }
+        }
     }
 
     private fun fmtMs(ms: Long): String =
