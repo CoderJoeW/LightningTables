@@ -19,10 +19,32 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.random.Random
 
 class Demo {
 
     private val parser = LightningTableTriggerGeneratorSqlParser()
+
+    private fun seed(recordCount: Int) {
+        transaction {
+            val conn = this.connection.connection as java.sql.Connection
+            val types = listOf("CREDIT", "DEBIT")
+            val services = listOf("CALL", "SMS", "DATA")
+
+            conn.prepareStatement(
+                "INSERT INTO transactions (user_id, type, service, cost) VALUES (?, ?, ?, ?)"
+            ).use { stmt ->
+                repeat(recordCount) {
+                    stmt.setInt(1, Random.nextInt(1, 4))
+                    stmt.setString(2, types.random())
+                    stmt.setString(3, services.random())
+                    stmt.setDouble(4, Random.nextDouble(0.01, 10.0))
+                    stmt.addBatch()
+                }
+                stmt.executeBatch()
+            }
+        }
+    }
 
     fun run() {
         val (host, port, username, password, dbName) =
@@ -192,38 +214,20 @@ class Demo {
         screen.startScreen()
         screen.cursorPosition = null // hide cursor
 
-        val executor = Executors.newFixedThreadPool(3)
+        val queryExecutor = Executors.newFixedThreadPool(2)
+        val seedExecutor = Executors.newSingleThreadExecutor()
 
-        val leftFuture = executor.submit {
+        val leftFuture = queryExecutor.submit {
             while (running.get()) {
                 executeAndRecord(originalQuery, leftStats)
                 Thread.sleep(200)
             }
         }
 
-        val rightFuture = executor.submit {
+        val rightFuture = queryExecutor.submit {
             while (running.get()) {
                 executeAndRecord(lightningQuery, rightStats)
                 Thread.sleep(200)
-            }
-        }
-
-        val seederFuture = executor.submit {
-            val batchSize = 10
-            while (running.get()) {
-                try {
-                    seed(batchSize)
-                    recordsSeeded.addAndGet(batchSize.toLong())
-                } catch (e: Exception) {
-                    seederError.set(
-                        "${e.javaClass.simpleName}: ${e.message}",
-                    )
-                }
-                try {
-                    Thread.sleep(60_000)
-                } catch (_: InterruptedException) {
-                    break
-                }
             }
         }
 
@@ -231,12 +235,26 @@ class Demo {
             while (running.get()) {
                 // Check for keypress (non-blocking)
                 val key = screen.pollInput()
-                if (key != null &&
-                    (key.keyType == KeyType.Enter ||
-                        key.keyType == KeyType.Escape ||
-                        key.character == 'q')
-                ) {
-                    break
+                if (key != null) {
+                    when {
+                        key.keyType == KeyType.Enter ||
+                            key.keyType == KeyType.Escape ||
+                            key.character == 'q' -> break
+                        key.character == 's' || key.character == 'S' -> {
+                            // Trigger seed in background
+                            seedExecutor.submit {
+                                try {
+                                    val batchSize = 10
+                                    seed(batchSize)
+                                    recordsSeeded.addAndGet(batchSize.toLong())
+                                } catch (e: Exception) {
+                                    seederError.set(
+                                        "${e.javaClass.simpleName}: ${e.message}",
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
                 val size = screen.terminalSize
@@ -269,8 +287,8 @@ class Demo {
             running.set(false)
             leftFuture.cancel(true)
             rightFuture.cancel(true)
-            seederFuture.cancel(true)
-            executor.shutdownNow()
+            queryExecutor.shutdownNow()
+            seedExecutor.shutdownNow()
 
             val totalElapsedSecs =
                 (System.nanoTime() - startTimeNanos) / 1_000_000_000.0
@@ -459,7 +477,7 @@ class Demo {
 
         // ── Footer ─────────────────────────────────────────────────
         tg.foregroundColor = TextColor.ANSI.WHITE
-        val footer = "Press ENTER or 'q' to stop"
+        val footer = "Press 'S' to seed 10 records  |  Press ENTER or 'q' to stop"
         tg.putString(maxOf(0, (w - footer.length) / 2), h - 1, footer)
         tg.foregroundColor = TextColor.ANSI.DEFAULT
     }
