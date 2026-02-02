@@ -1,6 +1,6 @@
-package com.coderjoe.lightingtable.core
+package com.coderjoe.lightningtables.core
 
-import com.coderjoe.lightingtable.core.database.DatabaseConfig
+import com.coderjoe.lightningtables.core.database.DatabaseConfig
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach

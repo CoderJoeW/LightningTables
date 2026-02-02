@@ -1,4 +1,4 @@
-package com.coderjoe.benchmark
+package com.coderjoe.lightningtables.cli.benchmark
 
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import kotlin.random.Random

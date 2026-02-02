@@ -1,4 +1,4 @@
-package com.coderjoe.lightingtable.core.database
+package com.coderjoe.lightningtables.core.database
 
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.jdbc.insert

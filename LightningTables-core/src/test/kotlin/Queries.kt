@@ -1,4 +1,4 @@
-package com.coderjoe.lightingtable.core
+package com.coderjoe.lightningtables.core
 
 val queries =
     mapOf(

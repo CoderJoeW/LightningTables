@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.coderjoe</groupId>
+    <groupId>com.coderjoe.lightningtables.cli</groupId>
     <artifactId>lightning-tables-cli</artifactId>
     <version>1.0-SNAPSHOT</version>
 
@@ -77,7 +77,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>1.6.0</version>
                 <configuration>
-                    <mainClass>com.coderjoe.MainKt</mainClass>
+                    <mainClass>com.coderjoe.lightningtables.cli.MainKt</mainClass>
                 </configuration>
             </plugin>
             <plugin>
@@ -130,7 +130,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.coderjoe</groupId>
+            <groupId>com.coderjoe.lightningtables.core</groupId>
             <artifactId>LightningTables-core</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>

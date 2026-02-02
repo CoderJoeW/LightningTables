@@ -1,10 +1,9 @@
-package com.coderjoe.lightingtable.core.database.seeders
+package com.coderjoe.lightningtables.core.database.seeders
 
-import com.coderjoe.lightingtable.core.database.TransactionService
-import com.coderjoe.lightingtable.core.database.TransactionType
-import com.coderjoe.lightingtable.core.database.TransactionsRepository
+import com.coderjoe.lightningtables.core.database.TransactionService
+import com.coderjoe.lightningtables.core.database.TransactionType
+import com.coderjoe.lightningtables.core.database.TransactionsRepository
 import kotlin.random.Random
-import kotlin.text.insert
 
 class TransactionsSeeder {
     fun seed(recordCount: Int) {

@@ -1,9 +1,9 @@
-package com.coderjoe.lightingtable.core
-import com.coderjoe.lightingtable.core.database.TransactionsTable
-import com.coderjoe.lightingtable.core.database.UsersTable
-import com.coderjoe.lightingtable.core.database.seeders.TransactionsSeeder
+package com.coderjoe.lightningtables.core
+import com.coderjoe.lightningtables.core.database.TransactionsTable
+import com.coderjoe.lightningtables.core.database.UsersTable
+import com.coderjoe.lightningtables.core.database.seeders.TransactionsSeeder
 import org.jetbrains.exposed.v1.jdbc.deleteAll
-import com.coderjoe.lightingtable.core.services.LightningTableTriggerGeneratorSqlParser
+import com.coderjoe.lightningtables.core.services.LightningTableTriggerGeneratorSqlParser
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.selectAll

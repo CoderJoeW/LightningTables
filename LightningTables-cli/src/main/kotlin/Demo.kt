@@ -1,13 +1,13 @@
-package com.coderjoe
+package com.coderjoe.lightningtables.cli
 
-import com.coderjoe.benchmark.BenchmarkUI
-import com.coderjoe.benchmark.DatabaseSeeder
-import com.coderjoe.benchmark.QueryStats
-import com.coderjoe.benchmark.snapshot
-import com.coderjoe.database.DatabaseConfig
-import com.coderjoe.services.BackfillService
-import com.coderjoe.services.LightningTableTriggerGeneratorSqlParser
-import com.coderjoe.services.TriggerGeneratorResult
+import com.coderjoe.lightningtables.cli.benchmark.BenchmarkUI
+import com.coderjoe.lightningtables.cli.benchmark.DatabaseSeeder
+import com.coderjoe.lightningtables.cli.benchmark.QueryStats
+import com.coderjoe.lightningtables.cli.benchmark.snapshot
+import com.coderjoe.lightningtables.core.database.DatabaseConfig
+import com.coderjoe.lightningtables.core.services.BackfillService
+import com.coderjoe.lightningtables.core.services.LightningTableTriggerGeneratorSqlParser
+import com.coderjoe.lightningtables.core.services.TriggerGeneratorResult
 import com.googlecode.lanterna.input.KeyType
 import com.googlecode.lanterna.screen.Screen
 import com.googlecode.lanterna.screen.TerminalScreen

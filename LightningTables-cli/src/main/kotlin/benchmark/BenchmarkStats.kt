@@ -1,4 +1,4 @@
-package com.coderjoe.benchmark
+package com.coderjoe.lightningtables.cli.benchmark
 
 data class QueryStats(
     var totalRuns: Int = 0,

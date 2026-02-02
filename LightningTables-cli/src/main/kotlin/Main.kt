@@ -1,7 +1,7 @@
-package com.coderjoe
+package com.coderjoe.lightningtables.cli
 
-import com.coderjoe.services.LightningTableTriggerGeneratorSqlParser
-import com.coderjoe.services.TriggerGeneratorResult
+import com.coderjoe.lightningtables.core.services.LightningTableTriggerGeneratorSqlParser
+import com.coderjoe.lightningtables.core.services.TriggerGeneratorResult
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
