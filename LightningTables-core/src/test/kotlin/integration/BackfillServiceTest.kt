@@ -1,8 +1,11 @@
-package com.coderjoe.lightningtables.core
+package com.coderjoe.lightningtables.core.integration
 
 import com.coderjoe.lightningtables.core.database.TransactionService
 import com.coderjoe.lightningtables.core.database.TransactionType
 import com.coderjoe.lightningtables.core.database.TransactionsTable
+import com.coderjoe.lightningtables.core.queries
+import com.coderjoe.lightningtables.core.services.AggregateInfo
+import com.coderjoe.lightningtables.core.services.BackfillContext
 import com.coderjoe.lightningtables.core.services.BackfillService
 import com.coderjoe.lightningtables.core.services.LightningTableTriggerGeneratorSqlParser
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -915,11 +918,11 @@ class BackfillServiceTest : DockerComposeTestBase() {
     fun `backfill validates updated_at column exists`() {
         executeSQL("CREATE TABLE IF NOT EXISTS no_ts_table (id INT AUTO_INCREMENT PRIMARY KEY, val INT)")
         try {
-            val context = com.coderjoe.lightningtables.core.services.BackfillContext(
+            val context = BackfillContext(
                 baseTableName = "no_ts_table",
                 lightningTableName = "no_ts_summary",
                 groupByColumns = emptyList(),
-                aggregates = listOf(com.coderjoe.lightningtables.core.services.AggregateInfo("COUNT", "*", "row_count")),
+                aggregates = listOf(AggregateInfo("COUNT", "*", "row_count")),
                 whereClause = null
             )
             assertThrows(IllegalStateException::class.java) {

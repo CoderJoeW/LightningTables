@@ -1,10 +1,12 @@
-package com.coderjoe.lightningtables.core
+package com.coderjoe.lightningtables.core.integration
 
 import com.coderjoe.lightningtables.core.database.DatabaseConfig
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import java.io.File
+import java.sql.Connection
+import java.sql.DatabaseMetaData
 import java.sql.DriverManager
 
 data class ColumnSpec(
@@ -123,7 +125,7 @@ abstract class DockerComposeTestBase {
             )
         }
 
-        fun connect(): java.sql.Connection = DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD)
+        fun connect(): Connection = DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD)
 
         fun executeSQL(sql: String) {
             connect().use { connection ->
@@ -181,7 +183,7 @@ abstract class DockerComposeTestBase {
         reseedDatabase()
     }
 
-    fun java.sql.Connection.getColumnSpecs(tableName: String): Map<String, ColumnSpec> {
+    fun Connection.getColumnSpecs(tableName: String): Map<String, ColumnSpec> {
         val columns = metaData.getColumns(null, null, tableName, null)
         return buildMap {
             while (columns.next()) {
@@ -191,7 +193,7 @@ abstract class DockerComposeTestBase {
                         typeName = columns.getString("TYPE_NAME"),
                         size = columns.getInt("COLUMN_SIZE"),
                         decimalDigits = columns.getInt("DECIMAL_DIGITS").takeIf { !columns.wasNull() },
-                        nullable = columns.getInt("NULLABLE") == java.sql.DatabaseMetaData.columnNullable,
+                        nullable = columns.getInt("NULLABLE") == DatabaseMetaData.columnNullable,
                     ),
                 )
             }

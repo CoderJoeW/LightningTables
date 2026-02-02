@@ -1,7 +1,7 @@
-package com.coderjoe.lightningtables.core
+package com.coderjoe.lightningtables.core.unit
 
 import com.coderjoe.lightningtables.core.services.TriggerGenerator
-import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -32,7 +32,7 @@ class TriggerGeneratorTest {
             ON DUPLICATE KEY UPDATE total_amount = total_amount + NEW.amount;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -54,7 +54,7 @@ class TriggerGeneratorTest {
             ON DUPLICATE KEY UPDATE total_amount = total_amount + NEW.amount;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -81,7 +81,7 @@ class TriggerGeneratorTest {
             ON DUPLICATE KEY UPDATE total_amount = total_amount + NEW.amount, count = count + 1, last_updated = NOW();
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -108,7 +108,7 @@ class TriggerGeneratorTest {
             ON DUPLICATE KEY UPDATE total_spent = total_spent + NEW.amount, transaction_count = transaction_count + 1, avg_amount = total_spent / transaction_count;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -130,7 +130,7 @@ class TriggerGeneratorTest {
             ON DUPLICATE KEY UPDATE total_amount = total_amount - OLD.amount;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -164,7 +164,7 @@ class TriggerGeneratorTest {
             ON DUPLICATE KEY UPDATE total_revenue = total_revenue + (NEW.price * NEW.quantity), units_sold = units_sold + NEW.quantity, min_price = LEAST(min_price, NEW.price), max_price = GREATEST(max_price, NEW.price);
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -194,7 +194,7 @@ class TriggerGeneratorTest {
             ON DUPLICATE KEY UPDATE high_value_count = high_value_count + IF(NEW.amount > 1000, 1, 0), low_value_count = low_value_count + IF(NEW.amount <= 1000, 1, 0);
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -216,7 +216,7 @@ class TriggerGeneratorTest {
             ON DUPLICATE KEY UPDATE ;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -242,7 +242,7 @@ class TriggerGeneratorTest {
             ON DUPLICATE KEY UPDATE status = 'updated', description = CONCAT('database.entity.User ', NEW.name, ' updated');
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -268,7 +268,7 @@ class TriggerGeneratorTest {
             ON DUPLICATE KEY UPDATE total = total + COALESCE(NEW.amount, 0), nullable_field = COALESCE(NEW.optional_field, nullable_field);
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -290,7 +290,7 @@ class TriggerGeneratorTest {
             ON DUPLICATE KEY UPDATE `total-amount` = `total-amount` + NEW.`amount`;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -324,7 +324,7 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -358,7 +358,7 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -392,7 +392,7 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -426,7 +426,7 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -460,7 +460,7 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -522,7 +522,7 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -556,7 +556,7 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -590,7 +590,7 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     // --- buildUpdateTrigger tests ---
@@ -646,7 +646,7 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -700,7 +700,7 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -754,7 +754,7 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -808,7 +808,7 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     // --- buildDeleteTrigger tests ---
@@ -849,7 +849,7 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -888,7 +888,7 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -927,7 +927,7 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -966,7 +966,7 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -1005,7 +1005,7 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 
     @Test
@@ -1064,6 +1064,6 @@ class TriggerGeneratorTest {
                         END;
             """.trimIndent()
 
-        assertEquals(expected, result)
+        Assertions.assertEquals(expected, result)
     }
 }

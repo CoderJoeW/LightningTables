@@ -1,7 +1,8 @@
-package com.coderjoe.lightningtables.core
+package com.coderjoe.lightningtables.core.integration
 import com.coderjoe.lightningtables.core.database.TransactionsTable
 import com.coderjoe.lightningtables.core.database.UsersTable
 import com.coderjoe.lightningtables.core.database.seeders.TransactionsSeeder
+import com.coderjoe.lightningtables.core.queries
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import com.coderjoe.lightningtables.core.services.LightningTableTriggerGeneratorSqlParser
 import org.jetbrains.exposed.v1.core.eq
