@@ -1,9 +1,9 @@
-package com.coderjoe.lightningtables.cli
+package com.coderjoe.lightningtables.demo
 
-import com.coderjoe.lightningtables.cli.benchmark.BenchmarkUI
-import com.coderjoe.lightningtables.cli.benchmark.DatabaseSeeder
-import com.coderjoe.lightningtables.cli.benchmark.QueryStats
-import com.coderjoe.lightningtables.cli.benchmark.snapshot
+import com.coderjoe.lightningtables.demo.benchmark.BenchmarkUI
+import com.coderjoe.lightningtables.demo.benchmark.DatabaseSeeder
+import com.coderjoe.lightningtables.demo.benchmark.QueryStats
+import com.coderjoe.lightningtables.demo.benchmark.snapshot
 import com.coderjoe.lightningtables.core.database.DatabaseConfig
 import com.coderjoe.lightningtables.core.services.BackfillService
 import com.coderjoe.lightningtables.core.services.LightningTableTriggerGeneratorSqlParser

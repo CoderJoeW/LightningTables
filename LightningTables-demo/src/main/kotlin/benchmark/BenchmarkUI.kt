@@ -1,4 +1,4 @@
-package com.coderjoe.lightningtables.cli.benchmark
+package com.coderjoe.lightningtables.demo.benchmark
 
 import com.googlecode.lanterna.SGR
 import com.googlecode.lanterna.TerminalSize
