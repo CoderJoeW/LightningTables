@@ -9,8 +9,10 @@
 
 LightningTables is a **materialized view engine for MariaDB** that turns a single query into a fully managed, incrementally updated summary table.
 
-You provide the query.  
+You provide the query.
 LightningTables generates the triggers, keeps the data in sync, and guarantees fast reads—automatically.
+
+![Demo](demo-gif.gif)
 
 ---
 
