@@ -143,6 +143,7 @@ abstract class DockerComposeTestBase {
                     statement.execute("DROP TRIGGER IF EXISTS transactions_after_update_lightning")
                     statement.execute("DROP TRIGGER IF EXISTS transactions_after_delete_lightning")
                     statement.execute("DROP TABLE IF EXISTS transactions_user_id_lightning")
+                    statement.execute("DROP TABLE IF EXISTS transactions_lightning")
 
                     statement.execute("DELETE FROM transactions")
                     statement.execute("DELETE FROM users")
