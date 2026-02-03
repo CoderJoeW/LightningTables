@@ -60,9 +60,8 @@ class BackfillService(
                 }
 
                 val (minPk, maxPk) = conn.prepareStatement(
-                    "SELECT MIN(`$primaryKeyColumn`) AS min_pk, MAX(`$primaryKeyColumn`) AS max_pk FROM `${context.baseTableName}` WHERE `$TIMESTAMP_COLUMN` <= ?"
+                    "SELECT MIN(`$primaryKeyColumn`) AS min_pk, MAX(`$primaryKeyColumn`) AS max_pk FROM `${context.baseTableName}`"
                 ).use { stmt ->
-                    stmt.setTimestamp(1, dbNow)
                     val rs = stmt.executeQuery()
                     if (rs.next()) {
                         val min = rs.getLong("min_pk").takeIf { !rs.wasNull() }
