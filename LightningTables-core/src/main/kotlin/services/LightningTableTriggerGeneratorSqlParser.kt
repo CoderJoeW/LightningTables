@@ -364,6 +364,9 @@ class LightningTableTriggerGeneratorSqlParser {
         return if (aggregate.func == "SUM") {
             val columnType = aggregateColumnTypes[aggregate.col] ?: "DECIMAL(38,6)"
             "`${aggregate.alias}` $columnType NOT NULL DEFAULT 0"
+        } else if (aggregate.func == "COUNT") {
+            // Use signed BIGINT for COUNT to allow negative values in DELETE trigger upserts
+            "`${aggregate.alias}` BIGINT NOT NULL DEFAULT 0"
         } else {
             "`${aggregate.alias}` BIGINT UNSIGNED NOT NULL DEFAULT 0"
         }
