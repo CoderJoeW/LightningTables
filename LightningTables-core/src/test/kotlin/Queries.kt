@@ -13,4 +13,10 @@ val queries =
             SELECT COUNT(*) as record_count
             FROM transactions
             """.trimIndent(),
+        "totalRecordsByUserId" to
+            """
+            SELECT COUNT(*) as record_count, user_id
+            FROM transactions
+            GROUP BY user_id
+            """.trimIndent(),
     )
