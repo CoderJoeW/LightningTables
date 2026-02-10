@@ -3,7 +3,7 @@
 
 ---
 
-[![Integration Tests](https://github.com/CoderJoeW/LightningTables/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/CoderJoeW/LightningTables/actions/workflows/integration-tests.yml)
+[![Test Suite](https://github.com/CoderJoeW/LightningTables/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/CoderJoeW/LightningTables/actions/workflows/integration-tests.yml)
 
 # ⚡ LightningTables (aka the summary slayer)
 
