@@ -3,7 +3,9 @@
 
 ---
 
-[![Test Suite](https://github.com/CoderJoeW/LightningTables/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/CoderJoeW/LightningTables/actions/workflows/integration-tests.yml)
+[![Tests](https://github.com/CoderJoeW/LightningTables/actions/workflows/tests.yml/badge.svg)](https://github.com/CoderJoeW/LightningTables/actions/workflows/tests.yml)
+[![Code Quality](https://github.com/CoderJoeW/LightningTables/actions/workflows/code-quality.yml/badge.svg)](https://github.com/CoderJoeW/LightningTables/actions/workflows/code-quality.yml)
+[![Coverage](https://github.com/CoderJoeW/LightningTables/actions/workflows/coverage.yml/badge.svg)](https://github.com/CoderJoeW/LightningTables/actions/workflows/coverage.yml)
 
 # ⚡ LightningTables (aka the summary slayer)
 
