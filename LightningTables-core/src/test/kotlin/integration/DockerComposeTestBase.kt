@@ -62,7 +62,8 @@ abstract class DockerComposeTestBase {
 
             val process =
                 ProcessBuilder(
-                    "docker-compose",
+                    "docker",
+                    "compose",
                     "-f",
                     DOCKER_COMPOSE_FILE,
                     "up",
@@ -84,7 +85,8 @@ abstract class DockerComposeTestBase {
 
             val process =
                 ProcessBuilder(
-                    "docker-compose",
+                    "docker",
+                    "compose",
                     "-f",
                     DOCKER_COMPOSE_FILE,
                     "down",
