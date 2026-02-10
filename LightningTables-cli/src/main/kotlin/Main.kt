@@ -21,13 +21,14 @@ fun credentialsLoop(tryCount: Int = 0): Boolean {
     }
 
     try {
-        val credentials = DatabaseConnection(
-            host = getInput("Host: "),
-            username = getInput("Username: "),
-            password = getInput("Password: "),
-            database = getInput("Database: "),
-            port = getInput("Port: ").toInt()
-        )
+        val credentials =
+            DatabaseConnection(
+                host = getInput("Host: "),
+                username = getInput("Username: "),
+                password = getInput("Password: "),
+                database = getInput("Database: "),
+                port = getInput("Port: ").toInt(),
+            )
 
         DatabaseConfig.initialize(
             url = "jdbc:mariadb://${credentials.host}:${credentials.port}/${credentials.database}",
