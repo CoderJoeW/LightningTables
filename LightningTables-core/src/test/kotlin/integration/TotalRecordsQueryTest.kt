@@ -57,7 +57,10 @@ class TotalRecordsQueryTest : DockerComposeTestBase() {
         assertEquals(original, lightning, "Lightning table should match original query $context".trim())
     }
 
-    private fun insertTransaction(userId: Int, cost: Double = 10.00) {
+    private fun insertTransaction(
+        userId: Int,
+        cost: Double = 10.00,
+    ) {
         transaction {
             TransactionsTable.insert {
                 it[TransactionsTable.userId] = userId
@@ -240,7 +243,7 @@ class TotalRecordsQueryTest : DockerComposeTestBase() {
 
         connect().use { conn ->
             conn.createStatement().executeUpdate(
-                "DELETE FROM transactions WHERE cost < 5.00"
+                "DELETE FROM transactions WHERE cost < 5.00",
             )
         }
         assertTablesMatch("after deleting low-cost rows")
@@ -311,7 +314,7 @@ class TotalRecordsQueryTest : DockerComposeTestBase() {
 
         connect().use { conn ->
             conn.createStatement().executeUpdate(
-                "UPDATE transactions SET user_id = 2 WHERE user_id = 1 LIMIT 1"
+                "UPDATE transactions SET user_id = 2 WHERE user_id = 1 LIMIT 1",
             )
         }
         assertTablesMatch("after moving a transaction from user 1 to user 2 (count unchanged)")
@@ -325,7 +328,7 @@ class TotalRecordsQueryTest : DockerComposeTestBase() {
 
         connect().use { conn ->
             conn.createStatement().executeUpdate(
-                "UPDATE transactions SET user_id = 2, cost = 50.00 WHERE user_id = 1 LIMIT 1"
+                "UPDATE transactions SET user_id = 2, cost = 50.00 WHERE user_id = 1 LIMIT 1",
             )
         }
         assertTablesMatch("after updating both cost and user_id (count unchanged)")
@@ -557,7 +560,7 @@ class TotalRecordsQueryTest : DockerComposeTestBase() {
 
         connect().use { conn ->
             conn.createStatement().executeUpdate(
-                "DELETE FROM transactions WHERE cost = 0.00"
+                "DELETE FROM transactions WHERE cost = 0.00",
             )
         }
         assertTablesMatch("after deleting zero-cost rows (2 records remaining)")

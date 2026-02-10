@@ -57,7 +57,10 @@ class TotalRecordsByUserIdQueryTest : DockerComposeTestBase() {
         assertEquals(original, lightning, "Lightning table should match original query $context".trim())
     }
 
-    private fun insertTransaction(userId: Int, cost: Double = 10.00) {
+    private fun insertTransaction(
+        userId: Int,
+        cost: Double = 10.00,
+    ) {
         transaction {
             TransactionsTable.insert {
                 it[TransactionsTable.userId] = userId
@@ -244,7 +247,7 @@ class TotalRecordsByUserIdQueryTest : DockerComposeTestBase() {
         // Delete all cheap transactions across all users
         connect().use { conn ->
             conn.createStatement().executeUpdate(
-                "DELETE FROM transactions WHERE cost < 5.00"
+                "DELETE FROM transactions WHERE cost < 5.00",
             )
         }
         assertTablesMatch("after deleting low-cost rows across multiple users")
@@ -260,7 +263,7 @@ class TotalRecordsByUserIdQueryTest : DockerComposeTestBase() {
         // Delete all rows with cost < 10, wiping out users 1 and 2
         connect().use { conn ->
             conn.createStatement().executeUpdate(
-                "DELETE FROM transactions WHERE cost < 10.00"
+                "DELETE FROM transactions WHERE cost < 10.00",
             )
         }
         assertTablesMatch("after deleting rows that removes users 1 and 2 entirely")
@@ -333,7 +336,7 @@ class TotalRecordsByUserIdQueryTest : DockerComposeTestBase() {
 
         connect().use { conn ->
             conn.createStatement().executeUpdate(
-                "UPDATE transactions SET user_id = 2 WHERE user_id = 1 LIMIT 1"
+                "UPDATE transactions SET user_id = 2 WHERE user_id = 1 LIMIT 1",
             )
         }
         assertTablesMatch("after moving a transaction from user 1 to user 2")
@@ -348,7 +351,7 @@ class TotalRecordsByUserIdQueryTest : DockerComposeTestBase() {
 
         connect().use { conn ->
             conn.createStatement().executeUpdate(
-                "UPDATE transactions SET user_id = 2 WHERE user_id = 1"
+                "UPDATE transactions SET user_id = 2 WHERE user_id = 1",
             )
         }
         assertTablesMatch("after moving all transactions from user 1 to user 2")
@@ -363,10 +366,10 @@ class TotalRecordsByUserIdQueryTest : DockerComposeTestBase() {
         // Move user 1's transaction to user 3, then user 2's to user 1
         connect().use { conn ->
             conn.createStatement().executeUpdate(
-                "UPDATE transactions SET user_id = 3 WHERE user_id = 1"
+                "UPDATE transactions SET user_id = 3 WHERE user_id = 1",
             )
             conn.createStatement().executeUpdate(
-                "UPDATE transactions SET user_id = 1 WHERE user_id = 2"
+                "UPDATE transactions SET user_id = 1 WHERE user_id = 2",
             )
         }
         assertTablesMatch("after swapping user_ids through intermediate")
@@ -381,7 +384,7 @@ class TotalRecordsByUserIdQueryTest : DockerComposeTestBase() {
         // Move one row to user 2 who has never appeared
         connect().use { conn ->
             conn.createStatement().executeUpdate(
-                "UPDATE transactions SET user_id = 2 WHERE user_id = 1 LIMIT 1"
+                "UPDATE transactions SET user_id = 2 WHERE user_id = 1 LIMIT 1",
             )
         }
         assertTablesMatch("after moving transaction to user with no prior records")
@@ -396,7 +399,7 @@ class TotalRecordsByUserIdQueryTest : DockerComposeTestBase() {
         // Move everything to user 3 who has never appeared
         connect().use { conn ->
             conn.createStatement().executeUpdate(
-                "UPDATE transactions SET user_id = 3 WHERE user_id = 1"
+                "UPDATE transactions SET user_id = 3 WHERE user_id = 1",
             )
         }
         assertTablesMatch("after moving all transactions to new user (source user vanishes)")
@@ -410,7 +413,7 @@ class TotalRecordsByUserIdQueryTest : DockerComposeTestBase() {
 
         connect().use { conn ->
             conn.createStatement().executeUpdate(
-                "UPDATE transactions SET user_id = 2, cost = 50.00 WHERE user_id = 1 LIMIT 1"
+                "UPDATE transactions SET user_id = 2, cost = 50.00 WHERE user_id = 1 LIMIT 1",
             )
         }
         assertTablesMatch("after updating both cost and user_id simultaneously")
@@ -426,7 +429,7 @@ class TotalRecordsByUserIdQueryTest : DockerComposeTestBase() {
         // Move everyone to user 1
         connect().use { conn ->
             conn.createStatement().executeUpdate(
-                "UPDATE transactions SET user_id = 1 WHERE user_id != 1"
+                "UPDATE transactions SET user_id = 1 WHERE user_id != 1",
             )
         }
         assertTablesMatch("after consolidating all transactions to user 1")
@@ -658,7 +661,7 @@ class TotalRecordsByUserIdQueryTest : DockerComposeTestBase() {
 
         connect().use { conn ->
             conn.createStatement().executeUpdate(
-                "DELETE FROM transactions WHERE cost = 0.00"
+                "DELETE FROM transactions WHERE cost = 0.00",
             )
         }
         assertTablesMatch("after deleting zero-cost rows (user 2 should vanish)")
@@ -717,7 +720,7 @@ class TotalRecordsByUserIdQueryTest : DockerComposeTestBase() {
         // Move transactions between users
         connect().use { conn ->
             conn.createStatement().executeUpdate(
-                "UPDATE transactions SET user_id = 2 WHERE user_id = 1 LIMIT 25"
+                "UPDATE transactions SET user_id = 2 WHERE user_id = 1 LIMIT 25",
             )
         }
         assertTablesMatch("after moving 25 transactions from user 1 to user 2")

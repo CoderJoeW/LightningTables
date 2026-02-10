@@ -7,20 +7,20 @@ class TriggerGenerator {
         keyExpressions: List<String>,
         insertColumns: List<String>,
         insertValues: List<String>,
-        updateExpressions: List<String>
+        updateExpressions: List<String>,
     ): String {
         return """
             INSERT INTO $tableName (${keyColumns.joinToString(", ")}, ${insertColumns.joinToString(", ")})
             VALUES (${keyExpressions.joinToString(", ")}, ${insertValues.joinToString(", ")})
             ON DUPLICATE KEY UPDATE ${updateExpressions.joinToString(", ")};
-        """.trimIndent()
+            """.trimIndent()
     }
 
     fun buildInsertTrigger(
         tableName: String,
         baseTableName: String,
         predicate: String,
-        upsertStatement: String
+        upsertStatement: String,
     ): String {
         return """
             CREATE TRIGGER `${tableName}_after_insert_lightning`
@@ -31,7 +31,7 @@ class TriggerGenerator {
                     $upsertStatement
                 END IF;
             END;
-        """.trimIndent()
+            """.trimIndent()
     }
 
     fun buildUpdateTrigger(
@@ -41,7 +41,7 @@ class TriggerGenerator {
         oldUpsertStatement: String,
         newPredicate: String,
         newUpsertStatement: String,
-        cleanupStatement: String
+        cleanupStatement: String,
     ): String {
         return """
             CREATE TRIGGER `${tableName}_after_update_lightning`
@@ -57,7 +57,7 @@ class TriggerGenerator {
                     $newUpsertStatement
                 END IF;
             END;
-        """.trimIndent()
+            """.trimIndent()
     }
 
     fun buildDeleteTrigger(
@@ -65,7 +65,7 @@ class TriggerGenerator {
         baseTableName: String,
         predicate: String,
         upsertStatement: String,
-        cleanupStatement: String
+        cleanupStatement: String,
     ): String {
         return """
             CREATE TRIGGER `${tableName}_after_delete_lightning`
@@ -77,6 +77,6 @@ class TriggerGenerator {
                     $cleanupStatement
                 END IF;
             END;
-        """.trimIndent()
+            """.trimIndent()
     }
 }

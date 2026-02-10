@@ -9,9 +9,8 @@ private const val TIMESTAMP_COLUMN = "updated_at"
 
 class BackfillService(
     private val chunkSize: Int = 5_000,
-    private val threadCount: Int = 4
+    private val threadCount: Int = 4,
 ) {
-
     fun backfill(
         context: BackfillContext,
         triggerStatements: List<String>,
@@ -33,19 +32,19 @@ class BackfillService(
     private data class BackfillSnapshot(
         val dbNow: Timestamp,
         val minPk: Long,
-        val maxPk: Long
+        val maxPk: Long,
     )
 
     private fun lockCreateTriggersAndCaptureSnapshot(
         context: BackfillContext,
         primaryKeyColumn: String,
-        triggerStatements: List<String>
+        triggerStatements: List<String>,
     ): BackfillSnapshot? {
         return transaction {
             val conn = this.connection.connection as java.sql.Connection
 
             conn.createStatement().execute(
-                "LOCK TABLES `${context.baseTableName}` WRITE, `${context.lightningTableName}` WRITE"
+                "LOCK TABLES `${context.baseTableName}` WRITE, `${context.lightningTableName}` WRITE",
             )
 
             try {
@@ -53,29 +52,34 @@ class BackfillService(
                     conn.createStatement().use { stmt -> stmt.execute(sql) }
                 }
 
-                val dbNow = conn.createStatement().use { stmt ->
-                    val rs = stmt.executeQuery("SELECT NOW() AS now_ts")
-                    rs.next()
-                    rs.getTimestamp("now_ts")
-                }
-
-                val (minPk, maxPk) = conn.prepareStatement(
-                    "SELECT MIN(`$primaryKeyColumn`) AS min_pk, MAX(`$primaryKeyColumn`) AS max_pk FROM `${context.baseTableName}`"
-                ).use { stmt ->
-                    val rs = stmt.executeQuery()
-                    if (rs.next()) {
-                        val min = rs.getLong("min_pk").takeIf { !rs.wasNull() }
-                        val max = rs.getLong("max_pk").takeIf { !rs.wasNull() }
-                        Pair(min, max)
-                    } else {
-                        Pair(null, null)
+                val dbNow =
+                    conn.createStatement().use { stmt ->
+                        val rs = stmt.executeQuery("SELECT NOW() AS now_ts")
+                        rs.next()
+                        rs.getTimestamp("now_ts")
                     }
-                }
+
+                val (minPk, maxPk) =
+                    conn.prepareStatement(
+                        "SELECT MIN(`$primaryKeyColumn`) AS min_pk, MAX(`$primaryKeyColumn`) AS max_pk FROM `${context.baseTableName}`",
+                    ).use { stmt ->
+                        val rs = stmt.executeQuery()
+                        if (rs.next()) {
+                            val min = rs.getLong("min_pk").takeIf { !rs.wasNull() }
+                            val max = rs.getLong("max_pk").takeIf { !rs.wasNull() }
+                            Pair(min, max)
+                        } else {
+                            Pair(null, null)
+                        }
+                    }
 
                 conn.createStatement().execute("TRUNCATE TABLE `${context.lightningTableName}`")
 
-                if (minPk == null || maxPk == null) null
-                else BackfillSnapshot(dbNow, minPk, maxPk)
+                if (minPk == null || maxPk == null) {
+                    null
+                } else {
+                    BackfillSnapshot(dbNow, minPk, maxPk)
+                }
             } finally {
                 conn.createStatement().execute("UNLOCK TABLES")
             }
@@ -87,11 +91,12 @@ class BackfillService(
             val conn = this.connection.connection as java.sql.Connection
             val databaseName = conn.catalog
 
-            val sql = """
+            val sql =
+                """
                 SELECT COLUMN_NAME
                 FROM INFORMATION_SCHEMA.COLUMNS
                 WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'updated_at'
-            """.trimIndent()
+                """.trimIndent()
 
             conn.prepareStatement(sql).use { stmt ->
                 stmt.setString(1, databaseName)
@@ -101,7 +106,7 @@ class BackfillService(
                 if (!rs.next()) {
                     throw IllegalStateException(
                         "Required column `updated_at` not found on `$baseTableName`. " +
-                            "The base table must have an `updated_at` timestamp column for backfill."
+                            "The base table must have an `updated_at` timestamp column for backfill.",
                     )
                 }
             }
@@ -113,11 +118,12 @@ class BackfillService(
             val conn = this.connection.connection as java.sql.Connection
             val databaseName = conn.catalog
 
-            val sql = """
+            val sql =
+                """
                 SELECT COLUMN_NAME
                 FROM INFORMATION_SCHEMA.COLUMNS
                 WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_KEY = 'PRI'
-            """.trimIndent()
+                """.trimIndent()
 
             conn.prepareStatement(sql).use { stmt ->
                 stmt.setString(1, databaseName)
@@ -138,15 +144,19 @@ class BackfillService(
         }
     }
 
-    private fun buildBackfillSql(context: BackfillContext, primaryKeyColumn: String): String {
+    private fun buildBackfillSql(
+        context: BackfillContext,
+        primaryKeyColumn: String,
+    ): String {
         val groupCols = context.groupByColumns.joinToString(", ") { "`$it`" }
-        val aggSelectCols = context.aggregates.joinToString(", ") { agg ->
-            if (agg.func == "COUNT") {
-                "COUNT(*) AS `${agg.alias}`"
-            } else {
-                "${agg.func}(`${agg.col}`) AS `${agg.alias}`"
+        val aggSelectCols =
+            context.aggregates.joinToString(", ") { agg ->
+                if (agg.func == "COUNT") {
+                    "COUNT(*) AS `${agg.alias}`"
+                } else {
+                    "${agg.func}(`${agg.col}`) AS `${agg.alias}`"
+                }
             }
-        }
         val aggInsertCols = context.aggregates.joinToString(", ") { "`${it.alias}`" }
 
         val insertCols = if (groupCols.isNotEmpty()) "$groupCols, $aggInsertCols" else aggInsertCols
@@ -159,15 +169,17 @@ class BackfillService(
 
         val whereStr = whereParts.joinToString(" AND ")
 
-        val groupByStr = if (context.groupByColumns.isNotEmpty()) {
-            "GROUP BY $groupCols"
-        } else {
-            ""
-        }
+        val groupByStr =
+            if (context.groupByColumns.isNotEmpty()) {
+                "GROUP BY $groupCols"
+            } else {
+                ""
+            }
 
-        val onDuplicateUpdate = context.aggregates.joinToString(", ") { agg ->
-            "`${agg.alias}` = `${agg.alias}` + VALUES(`${agg.alias}`)"
-        }
+        val onDuplicateUpdate =
+            context.aggregates.joinToString(", ") { agg ->
+                "`${agg.alias}` = `${agg.alias}` + VALUES(`${agg.alias}`)"
+            }
 
         return """
             INSERT INTO `${context.lightningTableName}` ($insertCols)
@@ -176,7 +188,7 @@ class BackfillService(
             WHERE $whereStr
             $groupByStr
             ON DUPLICATE KEY UPDATE $onDuplicateUpdate
-        """.trimIndent()
+            """.trimIndent()
     }
 
     private fun processChunks(
@@ -197,21 +209,22 @@ class BackfillService(
         val totalChunks = chunks.size
         val completedChunks = AtomicInteger(0)
 
-        val futures = chunks.map { (start, end) ->
-            executor.submit<Unit> {
-                transaction {
-                    val conn = this.connection.connection as java.sql.Connection
-                    conn.prepareStatement(sql).use { stmt ->
-                        stmt.setLong(1, start)
-                        stmt.setLong(2, end)
-                        stmt.setTimestamp(3, snapshot.dbNow)
-                        stmt.executeUpdate()
+        val futures =
+            chunks.map { (start, end) ->
+                executor.submit<Unit> {
+                    transaction {
+                        val conn = this.connection.connection as java.sql.Connection
+                        conn.prepareStatement(sql).use { stmt ->
+                            stmt.setLong(1, start)
+                            stmt.setLong(2, end)
+                            stmt.setTimestamp(3, snapshot.dbNow)
+                            stmt.executeUpdate()
+                        }
                     }
+                    val done = completedChunks.incrementAndGet()
+                    onProgress?.invoke(done, totalChunks)
                 }
-                val done = completedChunks.incrementAndGet()
-                onProgress?.invoke(done, totalChunks)
             }
-        }
 
         futures.forEach { it.get() }
         executor.shutdown()

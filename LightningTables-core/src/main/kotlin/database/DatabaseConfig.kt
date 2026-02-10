@@ -10,14 +10,15 @@ object DatabaseConfig {
         username: String,
         password: String,
     ) {
-        val config = HikariConfig().apply {
-            jdbcUrl = url
-            driverClassName = "org.mariadb.jdbc.Driver"
-            this.username = username
-            this.password = password
-            maximumPoolSize = 10
-            addDataSourceProperty("useBulkStmts", "false")
-        }
+        val config =
+            HikariConfig().apply {
+                jdbcUrl = url
+                driverClassName = "org.mariadb.jdbc.Driver"
+                this.username = username
+                this.password = password
+                maximumPoolSize = 10
+                addDataSourceProperty("useBulkStmts", "false")
+            }
         Database.Companion.connect(HikariDataSource(config))
     }
 }

@@ -30,14 +30,20 @@ class BackfillServiceTest : DockerComposeTestBase() {
 
     private fun generateResult() = parser.generate(query)
 
-    private fun setupLightningTableAndBackfill(chunkSize: Int = 10, threadCount: Int = 2) {
+    private fun setupLightningTableAndBackfill(
+        chunkSize: Int = 10,
+        threadCount: Int = 2,
+    ) {
         val result = generateResult()
         transaction { exec(result.lightningTable) }
         BackfillService(chunkSize = chunkSize, threadCount = threadCount)
             .backfill(result.backfillContext, result.triggers.values.toList())
     }
 
-    private fun reBackfill(chunkSize: Int = 10, threadCount: Int = 2) {
+    private fun reBackfill(
+        chunkSize: Int = 10,
+        threadCount: Int = 2,
+    ) {
         val result = generateResult()
         BackfillService(chunkSize = chunkSize, threadCount = threadCount)
             .backfill(result.backfillContext, emptyList())
@@ -81,7 +87,10 @@ class BackfillServiceTest : DockerComposeTestBase() {
         }
     }
 
-    private fun insertTransaction(userId: Int, cost: Double) {
+    private fun insertTransaction(
+        userId: Int,
+        cost: Double,
+    ) {
         transaction {
             TransactionsTable.insert {
                 it[TransactionsTable.userId] = userId
@@ -95,7 +104,7 @@ class BackfillServiceTest : DockerComposeTestBase() {
     private fun bulkInsertJdbc(rows: List<Triple<Int, String, Double>>) {
         connect().use { conn ->
             conn.prepareStatement(
-                "INSERT INTO transactions (user_id, type, service, cost) VALUES (?, ?, ?, ?)"
+                "INSERT INTO transactions (user_id, type, service, cost) VALUES (?, ?, ?, ?)",
             ).use { stmt ->
                 rows.forEach { (userId, service, cost) ->
                     stmt.setInt(1, userId)
@@ -406,9 +415,10 @@ class BackfillServiceTest : DockerComposeTestBase() {
     @Test
     fun `backfill 500 rows with tiny chunks`() {
         executeSQL("DELETE FROM transactions")
-        val rows = (1..500).map { i ->
-            Triple((i % 3) + 1, TransactionService.entries[i % 3].name, 1.00 + (i % 100) * 0.01)
-        }
+        val rows =
+            (1..500).map { i ->
+                Triple((i % 3) + 1, TransactionService.entries[i % 3].name, 1.00 + (i % 100) * 0.01)
+            }
         bulkInsertJdbc(rows)
 
         setupLightningTableAndBackfill(chunkSize = 7, threadCount = 4)
@@ -418,9 +428,10 @@ class BackfillServiceTest : DockerComposeTestBase() {
     @Test
     fun `backfill 1000 rows distributed across 3 users`() {
         executeSQL("DELETE FROM transactions")
-        val rows = (1..1000).map { i ->
-            Triple((i % 3) + 1, "CALL", (i % 50).toDouble() + 0.50)
-        }
+        val rows =
+            (1..1000).map { i ->
+                Triple((i % 3) + 1, "CALL", (i % 50).toDouble() + 0.50)
+            }
         bulkInsertJdbc(rows)
 
         setupLightningTableAndBackfill(chunkSize = 50, threadCount = 4)
@@ -430,9 +441,10 @@ class BackfillServiceTest : DockerComposeTestBase() {
     @Test
     fun `backfill 1000 rows across 50 users`() {
         resetUsersTo(50)
-        val rows = (1..1000).map { i ->
-            Triple((i % 50) + 1, "SMS", 2.00 + (i % 10) * 0.10)
-        }
+        val rows =
+            (1..1000).map { i ->
+                Triple((i % 50) + 1, "SMS", 2.00 + (i % 10) * 0.10)
+            }
         bulkInsertJdbc(rows)
 
         setupLightningTableAndBackfill(chunkSize = 25, threadCount = 4)
@@ -443,9 +455,10 @@ class BackfillServiceTest : DockerComposeTestBase() {
     @Test
     fun `backfill 2000 rows with chunk size 1 single threaded`() {
         executeSQL("DELETE FROM transactions")
-        val rows = (1..2000).map { i ->
-            Triple((i % 3) + 1, "DATA", 0.50)
-        }
+        val rows =
+            (1..2000).map { i ->
+                Triple((i % 3) + 1, "DATA", 0.50)
+            }
         bulkInsertJdbc(rows)
 
         setupLightningTableAndBackfill(chunkSize = 1, threadCount = 1)
@@ -455,9 +468,10 @@ class BackfillServiceTest : DockerComposeTestBase() {
     @Test
     fun `backfill with maximum parallelism`() {
         executeSQL("DELETE FROM transactions")
-        val rows = (1..500).map { i ->
-            Triple((i % 3) + 1, "CALL", 1.00)
-        }
+        val rows =
+            (1..500).map { i ->
+                Triple((i % 3) + 1, "CALL", 1.00)
+            }
         bulkInsertJdbc(rows)
 
         setupLightningTableAndBackfill(chunkSize = 10, threadCount = 8)
@@ -482,9 +496,10 @@ class BackfillServiceTest : DockerComposeTestBase() {
     @Test
     fun `concurrent inserts during backfill - steady stream`() {
         executeSQL("DELETE FROM transactions")
-        val seedRows = (1..500).map { i ->
-            Triple((i % 3) + 1, "CALL", 1.00)
-        }
+        val seedRows =
+            (1..500).map { i ->
+                Triple((i % 3) + 1, "CALL", 1.00)
+            }
         bulkInsertJdbc(seedRows)
 
         val result = generateResult()
@@ -493,25 +508,26 @@ class BackfillServiceTest : DockerComposeTestBase() {
         val insertsCompleted = AtomicInteger(0)
         val backfillDone = AtomicBoolean(false)
 
-        val inserter = Thread {
-            while (!backfillDone.get()) {
-                try {
-                    connect().use { conn ->
-                        conn.prepareStatement(
-                            "INSERT INTO transactions (user_id, type, service, cost) VALUES (?, 'DEBIT', 'CALL', ?)"
-                        ).use { stmt ->
-                            stmt.setInt(1, (insertsCompleted.get() % 3) + 1)
-                            stmt.setDouble(2, 0.10)
-                            stmt.executeUpdate()
+        val inserter =
+            Thread {
+                while (!backfillDone.get()) {
+                    try {
+                        connect().use { conn ->
+                            conn.prepareStatement(
+                                "INSERT INTO transactions (user_id, type, service, cost) VALUES (?, 'DEBIT', 'CALL', ?)",
+                            ).use { stmt ->
+                                stmt.setInt(1, (insertsCompleted.get() % 3) + 1)
+                                stmt.setDouble(2, 0.10)
+                                stmt.executeUpdate()
+                            }
                         }
+                        insertsCompleted.incrementAndGet()
+                        Thread.sleep(1)
+                    } catch (_: Exception) {
+                        // Lock may block temporarily
                     }
-                    insertsCompleted.incrementAndGet()
-                    Thread.sleep(1)
-                } catch (_: Exception) {
-                    // Lock may block temporarily
                 }
             }
-        }
 
         inserter.start()
 
@@ -530,9 +546,10 @@ class BackfillServiceTest : DockerComposeTestBase() {
     @Test
     fun `concurrent inserts from multiple writers during backfill`() {
         executeSQL("DELETE FROM transactions")
-        val seedRows = (1..500).map { i ->
-            Triple((i % 3) + 1, "CALL", 1.00)
-        }
+        val seedRows =
+            (1..500).map { i ->
+                Triple((i % 3) + 1, "CALL", 1.00)
+            }
         bulkInsertJdbc(seedRows)
 
         val result = generateResult()
@@ -542,27 +559,28 @@ class BackfillServiceTest : DockerComposeTestBase() {
         val backfillDone = AtomicBoolean(false)
         val totalInserts = AtomicInteger(0)
 
-        val writers = (1..writerCount).map { writerId ->
-            Thread {
-                while (!backfillDone.get()) {
-                    try {
-                        connect().use { conn ->
-                            conn.prepareStatement(
-                                "INSERT INTO transactions (user_id, type, service, cost) VALUES (?, 'DEBIT', 'SMS', ?)"
-                            ).use { stmt ->
-                                stmt.setInt(1, (writerId % 3) + 1)
-                                stmt.setDouble(2, 0.25)
-                                stmt.executeUpdate()
+        val writers =
+            (1..writerCount).map { writerId ->
+                Thread {
+                    while (!backfillDone.get()) {
+                        try {
+                            connect().use { conn ->
+                                conn.prepareStatement(
+                                    "INSERT INTO transactions (user_id, type, service, cost) VALUES (?, 'DEBIT', 'SMS', ?)",
+                                ).use { stmt ->
+                                    stmt.setInt(1, (writerId % 3) + 1)
+                                    stmt.setDouble(2, 0.25)
+                                    stmt.executeUpdate()
+                                }
                             }
+                            totalInserts.incrementAndGet()
+                            Thread.sleep(1)
+                        } catch (_: Exception) {
+                            // Expected during lock
                         }
-                        totalInserts.incrementAndGet()
-                        Thread.sleep(1)
-                    } catch (_: Exception) {
-                        // Expected during lock
                     }
                 }
             }
-        }
 
         writers.forEach { it.start() }
 
@@ -581,9 +599,10 @@ class BackfillServiceTest : DockerComposeTestBase() {
     @Test
     fun `burst of inserts immediately after backfill lock releases`() {
         executeSQL("DELETE FROM transactions")
-        val seedRows = (1..200).map { i ->
-            Triple((i % 3) + 1, "CALL", 2.00)
-        }
+        val seedRows =
+            (1..200).map { i ->
+                Triple((i % 3) + 1, "CALL", 2.00)
+            }
         bulkInsertJdbc(seedRows)
 
         val result = generateResult()
@@ -592,34 +611,36 @@ class BackfillServiceTest : DockerComposeTestBase() {
         val burstReady = CountDownLatch(1)
         val burstInserts = AtomicInteger(0)
 
-        val burstWriters = (1..4).map {
-            Thread {
-                burstReady.await()
-                try {
-                    connect().use { conn ->
-                        conn.prepareStatement(
-                            "INSERT INTO transactions (user_id, type, service, cost) VALUES (?, 'DEBIT', 'DATA', ?)"
-                        ).use { stmt ->
-                            for (j in 1..50) {
-                                stmt.setInt(1, (j % 3) + 1)
-                                stmt.setDouble(2, 1.00)
-                                stmt.executeUpdate()
-                                burstInserts.incrementAndGet()
+        val burstWriters =
+            (1..4).map {
+                Thread {
+                    burstReady.await()
+                    try {
+                        connect().use { conn ->
+                            conn.prepareStatement(
+                                "INSERT INTO transactions (user_id, type, service, cost) VALUES (?, 'DEBIT', 'DATA', ?)",
+                            ).use { stmt ->
+                                for (j in 1..50) {
+                                    stmt.setInt(1, (j % 3) + 1)
+                                    stmt.setDouble(2, 1.00)
+                                    stmt.executeUpdate()
+                                    burstInserts.incrementAndGet()
+                                }
                             }
                         }
+                    } catch (_: Exception) {
+                        // Acceptable
                     }
-                } catch (_: Exception) {
-                    // Acceptable
                 }
             }
-        }
 
         burstWriters.forEach { it.start() }
 
-        val backfillThread = Thread {
-            BackfillService(chunkSize = 5, threadCount = 2)
-                .backfill(result.backfillContext, result.triggers.values.toList())
-        }
+        val backfillThread =
+            Thread {
+                BackfillService(chunkSize = 5, threadCount = 2)
+                    .backfill(result.backfillContext, result.triggers.values.toList())
+            }
         backfillThread.start()
         // Signal writers immediately — they block on the write lock,
         // then burst during chunk processing after unlock
@@ -645,24 +666,26 @@ class BackfillServiceTest : DockerComposeTestBase() {
         val insertsCompleted = AtomicInteger(0)
 
         // Insert for user_ids 4 and 5 — these users have no pre-existing transactions
-        val inserter = Thread {
-            while (!backfillDone.get()) {
-                try {
-                    connect().use { conn ->
-                        conn.prepareStatement(
-                            "INSERT INTO transactions (user_id, type, service, cost) VALUES (?, 'DEBIT', 'CALL', ?)"
-                        ).use { stmt ->
-                            val userId = if (insertsCompleted.get() % 2 == 0) 4 else 5
-                            stmt.setInt(1, userId)
-                            stmt.setDouble(2, 10.00)
-                            stmt.executeUpdate()
+        val inserter =
+            Thread {
+                while (!backfillDone.get()) {
+                    try {
+                        connect().use { conn ->
+                            conn.prepareStatement(
+                                "INSERT INTO transactions (user_id, type, service, cost) VALUES (?, 'DEBIT', 'CALL', ?)",
+                            ).use { stmt ->
+                                val userId = if (insertsCompleted.get() % 2 == 0) 4 else 5
+                                stmt.setInt(1, userId)
+                                stmt.setDouble(2, 10.00)
+                                stmt.executeUpdate()
+                            }
                         }
+                        insertsCompleted.incrementAndGet()
+                        Thread.sleep(1)
+                    } catch (_: Exception) {
                     }
-                    insertsCompleted.incrementAndGet()
-                    Thread.sleep(1)
-                } catch (_: Exception) {}
+                }
             }
-        }
 
         inserter.start()
 
@@ -684,9 +707,10 @@ class BackfillServiceTest : DockerComposeTestBase() {
     @Test
     fun `stress - high throughput inserts during backfill with many chunks`() {
         executeSQL("DELETE FROM transactions")
-        val seedRows = (1..1000).map { i ->
-            Triple((i % 3) + 1, "CALL", 1.00)
-        }
+        val seedRows =
+            (1..1000).map { i ->
+                Triple((i % 3) + 1, "CALL", 1.00)
+            }
         bulkInsertJdbc(seedRows)
 
         val result = generateResult()
@@ -695,27 +719,29 @@ class BackfillServiceTest : DockerComposeTestBase() {
         val backfillDone = AtomicBoolean(false)
         val totalInserted = AtomicInteger(0)
 
-        val writers = (1..4).map { writerId ->
-            Thread {
-                while (!backfillDone.get()) {
-                    try {
-                        connect().use { conn ->
-                            conn.prepareStatement(
-                                "INSERT INTO transactions (user_id, type, service, cost) VALUES (?, 'DEBIT', 'DATA', ?)"
-                            ).use { stmt ->
-                                repeat(10) {
-                                    stmt.setInt(1, (writerId % 3) + 1)
-                                    stmt.setDouble(2, 0.10)
-                                    stmt.addBatch()
+        val writers =
+            (1..4).map { writerId ->
+                Thread {
+                    while (!backfillDone.get()) {
+                        try {
+                            connect().use { conn ->
+                                conn.prepareStatement(
+                                    "INSERT INTO transactions (user_id, type, service, cost) VALUES (?, 'DEBIT', 'DATA', ?)",
+                                ).use { stmt ->
+                                    repeat(10) {
+                                        stmt.setInt(1, (writerId % 3) + 1)
+                                        stmt.setDouble(2, 0.10)
+                                        stmt.addBatch()
+                                    }
+                                    stmt.executeBatch()
                                 }
-                                stmt.executeBatch()
                             }
+                            totalInserted.addAndGet(10)
+                        } catch (_: Exception) {
                         }
-                        totalInserted.addAndGet(10)
-                    } catch (_: Exception) {}
+                    }
                 }
             }
-        }
 
         writers.forEach { it.start() }
 
@@ -734,9 +760,10 @@ class BackfillServiceTest : DockerComposeTestBase() {
     @Test
     fun `stress - backfill with 4 threads and concurrent 4-writer inserts across 20 users`() {
         resetUsersTo(20)
-        val seedRows = (1..800).map { i ->
-            Triple((i % 20) + 1, "CALL", 3.00)
-        }
+        val seedRows =
+            (1..800).map { i ->
+                Triple((i % 20) + 1, "CALL", 3.00)
+            }
         bulkInsertJdbc(seedRows)
 
         val result = generateResult()
@@ -745,28 +772,30 @@ class BackfillServiceTest : DockerComposeTestBase() {
         val backfillDone = AtomicBoolean(false)
         val totalInserted = AtomicInteger(0)
 
-        val writers = (1..4).map { writerId ->
-            Thread {
-                while (!backfillDone.get()) {
-                    try {
-                        connect().use { conn ->
-                            conn.prepareStatement(
-                                "INSERT INTO transactions (user_id, type, service, cost) VALUES (?, 'DEBIT', 'SMS', ?)"
-                            ).use { stmt ->
-                                for (j in 1..5) {
-                                    val userId = ((writerId * 5 + j) % 20) + 1
-                                    stmt.setInt(1, userId)
-                                    stmt.setDouble(2, 0.50)
-                                    stmt.addBatch()
+        val writers =
+            (1..4).map { writerId ->
+                Thread {
+                    while (!backfillDone.get()) {
+                        try {
+                            connect().use { conn ->
+                                conn.prepareStatement(
+                                    "INSERT INTO transactions (user_id, type, service, cost) VALUES (?, 'DEBIT', 'SMS', ?)",
+                                ).use { stmt ->
+                                    for (j in 1..5) {
+                                        val userId = ((writerId * 5 + j) % 20) + 1
+                                        stmt.setInt(1, userId)
+                                        stmt.setDouble(2, 0.50)
+                                        stmt.addBatch()
+                                    }
+                                    stmt.executeBatch()
                                 }
-                                stmt.executeBatch()
                             }
+                            totalInserted.addAndGet(5)
+                        } catch (_: Exception) {
                         }
-                        totalInserted.addAndGet(5)
-                    } catch (_: Exception) {}
+                    }
                 }
             }
-        }
 
         writers.forEach { it.start() }
 
@@ -788,14 +817,14 @@ class BackfillServiceTest : DockerComposeTestBase() {
         executeSQL("ALTER TABLE transactions AUTO_INCREMENT = 1")
         for (i in 1..100) {
             executeSQL(
-                "INSERT INTO transactions (user_id, type, service, cost) VALUES (${(i % 3) + 1}, 'DEBIT', 'CALL', 1.00)"
+                "INSERT INTO transactions (user_id, type, service, cost) VALUES (${(i % 3) + 1}, 'DEBIT', 'CALL', 1.00)",
             )
         }
         // Jump to PK 5000
         executeSQL("ALTER TABLE transactions AUTO_INCREMENT = 5000")
         for (i in 1..100) {
             executeSQL(
-                "INSERT INTO transactions (user_id, type, service, cost) VALUES (${(i % 3) + 1}, 'DEBIT', 'SMS', 2.00)"
+                "INSERT INTO transactions (user_id, type, service, cost) VALUES (${(i % 3) + 1}, 'DEBIT', 'SMS', 2.00)",
             )
         }
 
@@ -805,22 +834,24 @@ class BackfillServiceTest : DockerComposeTestBase() {
         val backfillDone = AtomicBoolean(false)
         val totalInserted = AtomicInteger(0)
 
-        val writer = Thread {
-            while (!backfillDone.get()) {
-                try {
-                    connect().use { conn ->
-                        conn.prepareStatement(
-                            "INSERT INTO transactions (user_id, type, service, cost) VALUES (?, 'DEBIT', 'DATA', ?)"
-                        ).use { stmt ->
-                            stmt.setInt(1, (totalInserted.get() % 3) + 1)
-                            stmt.setDouble(2, 0.50)
-                            stmt.executeUpdate()
+        val writer =
+            Thread {
+                while (!backfillDone.get()) {
+                    try {
+                        connect().use { conn ->
+                            conn.prepareStatement(
+                                "INSERT INTO transactions (user_id, type, service, cost) VALUES (?, 'DEBIT', 'DATA', ?)",
+                            ).use { stmt ->
+                                stmt.setInt(1, (totalInserted.get() % 3) + 1)
+                                stmt.setDouble(2, 0.50)
+                                stmt.executeUpdate()
+                            }
                         }
+                        totalInserted.incrementAndGet()
+                    } catch (_: Exception) {
                     }
-                    totalInserted.incrementAndGet()
-                } catch (_: Exception) {}
+                }
             }
-        }
 
         writer.start()
 
@@ -842,9 +873,10 @@ class BackfillServiceTest : DockerComposeTestBase() {
     @Test
     fun `single backfill thread produces correct result`() {
         executeSQL("DELETE FROM transactions")
-        val rows = (1..100).map { i ->
-            Triple((i % 3) + 1, "CALL", 1.50)
-        }
+        val rows =
+            (1..100).map { i ->
+                Triple((i % 3) + 1, "CALL", 1.50)
+            }
         bulkInsertJdbc(rows)
 
         setupLightningTableAndBackfill(chunkSize = 10, threadCount = 1)
@@ -860,9 +892,10 @@ class BackfillServiceTest : DockerComposeTestBase() {
     @Test
     fun `backfill threads produce consistent sums across repeated runs`() {
         executeSQL("DELETE FROM transactions")
-        val rows = (1..300).map { i ->
-            Triple((i % 3) + 1, "CALL", 1.00)
-        }
+        val rows =
+            (1..300).map { i ->
+                Triple((i % 3) + 1, "CALL", 1.00)
+            }
         bulkInsertJdbc(rows)
 
         setupLightningTableAndBackfill(chunkSize = 7, threadCount = 4)
@@ -870,8 +903,11 @@ class BackfillServiceTest : DockerComposeTestBase() {
 
         for ((chunk, threads) in listOf(3 to 2, 11 to 3, 50 to 1, 1 to 4)) {
             reBackfill(chunkSize = chunk, threadCount = threads)
-            assertEquals(firstResult, queryLightningTable(),
-                "chunk=$chunk threads=$threads should match first run")
+            assertEquals(
+                firstResult,
+                queryLightningTable(),
+                "chunk=$chunk threads=$threads should match first run",
+            )
         }
     }
 
@@ -918,13 +954,14 @@ class BackfillServiceTest : DockerComposeTestBase() {
     fun `backfill validates updated_at column exists`() {
         executeSQL("CREATE TABLE IF NOT EXISTS no_ts_table (id INT AUTO_INCREMENT PRIMARY KEY, val INT)")
         try {
-            val context = BackfillContext(
-                baseTableName = "no_ts_table",
-                lightningTableName = "no_ts_summary",
-                groupByColumns = emptyList(),
-                aggregates = listOf(AggregateInfo("COUNT", "*", "row_count")),
-                whereClause = null
-            )
+            val context =
+                BackfillContext(
+                    baseTableName = "no_ts_table",
+                    lightningTableName = "no_ts_summary",
+                    groupByColumns = emptyList(),
+                    aggregates = listOf(AggregateInfo("COUNT", "*", "row_count")),
+                    whereClause = null,
+                )
             assertThrows(IllegalStateException::class.java) {
                 BackfillService().backfill(context, emptyList())
             }
@@ -938,7 +975,7 @@ class BackfillServiceTest : DockerComposeTestBase() {
         executeSQL("DELETE FROM transactions")
         for (i in 1..30) {
             executeSQL(
-                "INSERT INTO transactions (user_id, type, service, cost) VALUES (${(i % 3) + 1}, 'DEBIT', 'CALL', 7.77)"
+                "INSERT INTO transactions (user_id, type, service, cost) VALUES (${(i % 3) + 1}, 'DEBIT', 'CALL', 7.77)",
             )
         }
         setupLightningTableAndBackfill(chunkSize = 4)
@@ -951,7 +988,7 @@ class BackfillServiceTest : DockerComposeTestBase() {
         for (i in 1..100) {
             val cost = if (i % 2 == 0) 9999.99 else 0.01
             executeSQL(
-                "INSERT INTO transactions (user_id, type, service, cost) VALUES (${(i % 3) + 1}, 'DEBIT', 'CALL', $cost)"
+                "INSERT INTO transactions (user_id, type, service, cost) VALUES (${(i % 3) + 1}, 'DEBIT', 'CALL', $cost)",
             )
         }
         setupLightningTableAndBackfill(chunkSize = 9)
@@ -977,9 +1014,10 @@ class BackfillServiceTest : DockerComposeTestBase() {
     @Test
     fun `large pre-existing dataset fully captured then triggers work`() {
         executeSQL("DELETE FROM transactions")
-        val rows = (1..1000).map { i ->
-            Triple((i % 3) + 1, "CALL", 1.00 + (i % 7) * 0.10)
-        }
+        val rows =
+            (1..1000).map { i ->
+                Triple((i % 3) + 1, "CALL", 1.00 + (i % 7) * 0.10)
+            }
         bulkInsertJdbc(rows)
 
         setupLightningTableAndBackfill(chunkSize = 25, threadCount = 4)
@@ -996,9 +1034,10 @@ class BackfillServiceTest : DockerComposeTestBase() {
         setupLightningTableAndBackfill()
 
         // Hammer triggers with rapid inserts after backfill
-        val rows = (1..500).map { i ->
-            Triple((i % 3) + 1, "CALL", 0.10)
-        }
+        val rows =
+            (1..500).map { i ->
+                Triple((i % 3) + 1, "CALL", 0.10)
+            }
         bulkInsertJdbc(rows)
 
         assertLightningMatchesOriginal("after 500 post-backfill bulk inserts")
@@ -1011,9 +1050,10 @@ class BackfillServiceTest : DockerComposeTestBase() {
     @Test
     fun `writer is blocked during lock window and resumes after`() {
         executeSQL("DELETE FROM transactions")
-        val seedRows = (1..100).map { i ->
-            Triple((i % 3) + 1, "CALL", 1.00)
-        }
+        val seedRows =
+            (1..100).map { i ->
+                Triple((i % 3) + 1, "CALL", 1.00)
+            }
         bulkInsertJdbc(seedRows)
 
         val result = generateResult()
@@ -1023,20 +1063,22 @@ class BackfillServiceTest : DockerComposeTestBase() {
         val writerCompleted = AtomicBoolean(false)
 
         // This writer tries to insert immediately — it should be blocked by the lock
-        val writer = Thread {
-            writerStarted.countDown()
-            try {
-                connect().use { conn ->
-                    conn.prepareStatement(
-                        "INSERT INTO transactions (user_id, type, service, cost) VALUES (1, 'DEBIT', 'CALL', 99.00)"
-                    ).use { stmt ->
-                        // This will block until the lock is released
-                        stmt.executeUpdate()
+        val writer =
+            Thread {
+                writerStarted.countDown()
+                try {
+                    connect().use { conn ->
+                        conn.prepareStatement(
+                            "INSERT INTO transactions (user_id, type, service, cost) VALUES (1, 'DEBIT', 'CALL', 99.00)",
+                        ).use { stmt ->
+                            // This will block until the lock is released
+                            stmt.executeUpdate()
+                        }
                     }
+                    writerCompleted.set(true)
+                } catch (_: Exception) {
                 }
-                writerCompleted.set(true)
-            } catch (_: Exception) {}
-        }
+            }
 
         writer.start()
         writerStarted.await()

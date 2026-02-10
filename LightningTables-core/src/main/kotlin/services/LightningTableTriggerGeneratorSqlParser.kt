@@ -1,20 +1,20 @@
 package com.coderjoe.lightningtables.core.services
 
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import net.sf.jsqlparser.expression.Function
 import net.sf.jsqlparser.parser.CCJSqlParserUtil
+import net.sf.jsqlparser.schema.Column
 import net.sf.jsqlparser.statement.select.PlainSelect
 import net.sf.jsqlparser.statement.select.Select
 import net.sf.jsqlparser.statement.select.SelectItem
-import net.sf.jsqlparser.schema.Column
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import net.sf.jsqlparser.schema.Table as SqlTable
-import net.sf.jsqlparser.expression.Function
 
 data class BackfillContext(
     val baseTableName: String,
     val lightningTableName: String,
     val groupByColumns: List<String>,
     val aggregates: List<AggregateInfo>,
-    val whereClause: String?
+    val whereClause: String?,
 )
 
 data class TriggerGeneratorResult(
@@ -22,18 +22,18 @@ data class TriggerGeneratorResult(
     val lightningTable: String,
     val triggers: Map<String, String>,
     val preview: String,
-    val backfillContext: BackfillContext
+    val backfillContext: BackfillContext,
 )
 
 data class AggregateInfo(
     val func: String,
     val col: String,
-    val alias: String
+    val alias: String,
 )
 
 data class PassColumnInfo(
     val col: String,
-    val alias: String
+    val alias: String,
 )
 
 private data class UpsertComponents(
@@ -45,7 +45,7 @@ private data class UpsertComponents(
     val newUpdateExpressions: List<String>,
     val oldInsertColumns: List<String>,
     val oldInsertValues: List<String>,
-    val oldUpdateExpressions: List<String>
+    val oldUpdateExpressions: List<String>,
 )
 
 private data class ParsedQuery(
@@ -53,12 +53,14 @@ private data class ParsedQuery(
     val whereClause: String?,
     val groupByColumns: List<String>,
     val aggregates: List<AggregateInfo>,
-    val passThroughColumns: List<PassColumnInfo>
+    val passThroughColumns: List<PassColumnInfo>,
 )
 
 class LightningTableTriggerGeneratorSqlParser {
-
-    fun generate(query: String, lightningTable: String? = null): TriggerGeneratorResult {
+    fun generate(
+        query: String,
+        lightningTable: String? = null,
+    ): TriggerGeneratorResult {
         val normalizedQuery = normalizeQuery(query)
         val plainSelect = parseAndValidateQuery(normalizedQuery)
         val parsedQuery = extractQueryComponents(plainSelect, normalizedQuery)
@@ -77,13 +79,14 @@ class LightningTableTriggerGeneratorSqlParser {
             lightningTable = tableDdl,
             triggers = triggers,
             preview = formatPreview(tableDdl, triggers),
-            backfillContext = BackfillContext(
-                baseTableName = parsedQuery.baseTableName,
-                lightningTableName = lightningTableName,
-                groupByColumns = parsedQuery.groupByColumns,
-                aggregates = parsedQuery.aggregates,
-                whereClause = parsedQuery.whereClause
-            )
+            backfillContext =
+                BackfillContext(
+                    baseTableName = parsedQuery.baseTableName,
+                    lightningTableName = lightningTableName,
+                    groupByColumns = parsedQuery.groupByColumns,
+                    aggregates = parsedQuery.aggregates,
+                    whereClause = parsedQuery.whereClause,
+                ),
         )
     }
 
@@ -117,7 +120,10 @@ class LightningTableTriggerGeneratorSqlParser {
             ?: throw IllegalArgumentException("Only simple SELECT queries are supported.")
     }
 
-    private fun extractQueryComponents(plainSelect: PlainSelect, originalQuery: String): ParsedQuery {
+    private fun extractQueryComponents(
+        plainSelect: PlainSelect,
+        originalQuery: String,
+    ): ParsedQuery {
         val baseTableName = extractBaseTableName(plainSelect)
         val whereClause = extractWhereClause(originalQuery)
         val groupByColumns = extractGroupByColumns(plainSelect)
@@ -127,8 +133,9 @@ class LightningTableTriggerGeneratorSqlParser {
     }
 
     private fun extractBaseTableName(plainSelect: PlainSelect): String {
-        val fromItem = plainSelect.fromItem
-            ?: throw IllegalArgumentException("Query must contain FROM clause.")
+        val fromItem =
+            plainSelect.fromItem
+                ?: throw IllegalArgumentException("Query must contain FROM clause.")
 
         if (fromItem !is SqlTable) {
             throw IllegalArgumentException("Exactly one base table is supported.")
@@ -159,7 +166,10 @@ class LightningTableTriggerGeneratorSqlParser {
         return groupColumns
     }
 
-    private fun extractSelectListComponents(plainSelect: PlainSelect, groupByColumns: List<String>): Pair<List<AggregateInfo>, List<PassColumnInfo>> {
+    private fun extractSelectListComponents(
+        plainSelect: PlainSelect,
+        groupByColumns: List<String>,
+    ): Pair<List<AggregateInfo>, List<PassColumnInfo>> {
         val aggregates = mutableListOf<AggregateInfo>()
         val passThroughColumns = mutableListOf<PassColumnInfo>()
 
@@ -175,7 +185,7 @@ class LightningTableTriggerGeneratorSqlParser {
         selectItem: Any,
         groupByColumns: List<String>,
         aggregates: MutableList<AggregateInfo>,
-        passThroughColumns: MutableList<PassColumnInfo>
+        passThroughColumns: MutableList<PassColumnInfo>,
     ) {
         when (selectItem) {
             is SelectItem<*> -> {
@@ -196,7 +206,7 @@ class LightningTableTriggerGeneratorSqlParser {
         column: Column,
         alias: String?,
         groupByColumns: List<String>,
-        passThroughColumns: MutableList<PassColumnInfo>
+        passThroughColumns: MutableList<PassColumnInfo>,
     ) {
         val columnName = trimIdentifier(column.columnName)
         if (!groupByColumns.contains(columnName)) {
@@ -205,7 +215,11 @@ class LightningTableTriggerGeneratorSqlParser {
         passThroughColumns.add(PassColumnInfo(columnName, alias ?: columnName))
     }
 
-    private fun processFunctionExpression(function: Function, alias: String?, aggregates: MutableList<AggregateInfo>) {
+    private fun processFunctionExpression(
+        function: Function,
+        alias: String?,
+        aggregates: MutableList<AggregateInfo>,
+    ) {
         val functionName = function.name.uppercase()
         validateAggregateFunction(functionName)
 
@@ -237,13 +251,19 @@ class LightningTableTriggerGeneratorSqlParser {
         }
     }
 
-    private fun validateAggregateArgument(functionName: String, argument: String) {
+    private fun validateAggregateArgument(
+        functionName: String,
+        argument: String,
+    ) {
         if (functionName == "COUNT" && argument != "*") {
             throw IllegalArgumentException("Only COUNT(*) is supported.")
         }
     }
 
-    private fun generateDefaultAggregateAlias(functionName: String, argument: String): String {
+    private fun generateDefaultAggregateAlias(
+        functionName: String,
+        argument: String,
+    ): String {
         return if (functionName == "SUM") "sum_$argument" else "row_count"
     }
 
@@ -255,10 +275,13 @@ class LightningTableTriggerGeneratorSqlParser {
 
     private data class ColumnMetadata(
         val columnType: String,
-        val isNullable: Boolean
+        val isNullable: Boolean,
     )
 
-    private fun loadColumnDefinitionsIfNeeded(baseTableName: String, groupByColumns: List<String>): Map<String, String> {
+    private fun loadColumnDefinitionsIfNeeded(
+        baseTableName: String,
+        groupByColumns: List<String>,
+    ): Map<String, String> {
         if (groupByColumns.isEmpty()) {
             return emptyMap()
         }
@@ -276,7 +299,10 @@ class LightningTableTriggerGeneratorSqlParser {
         }
     }
 
-    private fun loadAggregateColumnTypes(baseTableName: String, aggregates: List<AggregateInfo>): Map<String, String> {
+    private fun loadAggregateColumnTypes(
+        baseTableName: String,
+        aggregates: List<AggregateInfo>,
+    ): Map<String, String> {
         val sumColumns = aggregates.filter { it.func == "SUM" && it.col != "*" }.map { it.col }
         if (sumColumns.isEmpty()) {
             return emptyMap()
@@ -286,17 +312,21 @@ class LightningTableTriggerGeneratorSqlParser {
         return metadata.mapValues { it.value.columnType }
     }
 
-    private fun queryColumnMetadata(tableName: String, columnNames: List<String>): Map<String, ColumnMetadata> {
+    private fun queryColumnMetadata(
+        tableName: String,
+        columnNames: List<String>,
+    ): Map<String, ColumnMetadata> {
         return transaction {
             val conn = this.connection.connection as java.sql.Connection
             val databaseName = conn.catalog
 
             val placeholders = columnNames.joinToString(",") { "?" }
-            val sql = """
+            val sql =
+                """
                 SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE
                 FROM INFORMATION_SCHEMA.COLUMNS
                 WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME IN ($placeholders)
-            """.trimIndent()
+                """.trimIndent()
 
             val statement = conn.prepareStatement(sql)
             statement.use { stmt ->
@@ -320,7 +350,10 @@ class LightningTableTriggerGeneratorSqlParser {
         }
     }
 
-    private fun generateLightningTableName(baseTableName: String, groupByColumns: List<String>): String {
+    private fun generateLightningTableName(
+        baseTableName: String,
+        groupByColumns: List<String>,
+    ): String {
         return if (groupByColumns.isEmpty()) {
             convertToSnakeCase("${baseTableName}_lightning")
         } else {
@@ -332,35 +365,44 @@ class LightningTableTriggerGeneratorSqlParser {
         lightningTableName: String,
         keyColumnDefinitions: Map<String, String>,
         aggregates: List<AggregateInfo>,
-        aggregateColumnTypes: Map<String, String>
+        aggregateColumnTypes: Map<String, String>,
     ): String {
-        val (allColumnDefinitions, primaryKeyColumns) = if (keyColumnDefinitions.isEmpty()) {
-            buildNonGroupedTableStructure(aggregates, aggregateColumnTypes)
-        } else {
-            buildGroupedTableStructure(keyColumnDefinitions, aggregates, aggregateColumnTypes)
-        }
+        val (allColumnDefinitions, primaryKeyColumns) =
+            if (keyColumnDefinitions.isEmpty()) {
+                buildNonGroupedTableStructure(aggregates, aggregateColumnTypes)
+            } else {
+                buildGroupedTableStructure(keyColumnDefinitions, aggregates, aggregateColumnTypes)
+            }
 
         return formatTableDdl(lightningTableName, allColumnDefinitions, primaryKeyColumns)
     }
 
-    private fun buildNonGroupedTableStructure(aggregates: List<AggregateInfo>, aggregateColumnTypes: Map<String, String>): Pair<List<String>, String> {
-        val columnDefinitions = listOf("`lightning_id` TINYINT UNSIGNED NOT NULL DEFAULT 1") +
-            aggregates.map { buildAggregateColumnDefinition(it, aggregateColumnTypes) }
+    private fun buildNonGroupedTableStructure(
+        aggregates: List<AggregateInfo>,
+        aggregateColumnTypes: Map<String, String>,
+    ): Pair<List<String>, String> {
+        val columnDefinitions =
+            listOf("`lightning_id` TINYINT UNSIGNED NOT NULL DEFAULT 1") +
+                aggregates.map { buildAggregateColumnDefinition(it, aggregateColumnTypes) }
         return Pair(columnDefinitions, "`lightning_id`")
     }
 
     private fun buildGroupedTableStructure(
         keyColumnDefinitions: Map<String, String>,
         aggregates: List<AggregateInfo>,
-        aggregateColumnTypes: Map<String, String>
+        aggregateColumnTypes: Map<String, String>,
     ): Pair<List<String>, String> {
-        val columnDefinitions = keyColumnDefinitions.values.toList() +
-            aggregates.map { buildAggregateColumnDefinition(it, aggregateColumnTypes) }
+        val columnDefinitions =
+            keyColumnDefinitions.values.toList() +
+                aggregates.map { buildAggregateColumnDefinition(it, aggregateColumnTypes) }
         val primaryKeyColumns = keyColumnDefinitions.keys.joinToString(",") { "`$it`" }
         return Pair(columnDefinitions, primaryKeyColumns)
     }
 
-    private fun buildAggregateColumnDefinition(aggregate: AggregateInfo, aggregateColumnTypes: Map<String, String>): String {
+    private fun buildAggregateColumnDefinition(
+        aggregate: AggregateInfo,
+        aggregateColumnTypes: Map<String, String>,
+    ): String {
         return if (aggregate.func == "SUM") {
             val columnType = aggregateColumnTypes[aggregate.col] ?: "DECIMAL(38,6)"
             "`${aggregate.alias}` $columnType NOT NULL DEFAULT 0"
@@ -372,7 +414,11 @@ class LightningTableTriggerGeneratorSqlParser {
         }
     }
 
-    private fun formatTableDdl(tableName: String, columnDefinitions: List<String>, primaryKeyColumns: String): String {
+    private fun formatTableDdl(
+        tableName: String,
+        columnDefinitions: List<String>,
+        primaryKeyColumns: String,
+    ): String {
         return """CREATE TABLE IF NOT EXISTS `$tableName` (
   ${columnDefinitions.joinToString(",\n  ")},
   PRIMARY KEY ($primaryKeyColumns)
@@ -387,7 +433,7 @@ class LightningTableTriggerGeneratorSqlParser {
 
     private fun buildUpsertComponents(
         columnDefinitions: Map<String, String>,
-        aggregates: List<AggregateInfo>
+        aggregates: List<AggregateInfo>,
     ): UpsertComponents {
         val (keyColumns, keyOldExpressions, keyNewExpressions) = buildKeyExpressions(columnDefinitions)
         val (newInsertColumns, newInsertValues, newUpdateExpressions) = buildNewRowExpressions(aggregates)
@@ -396,7 +442,7 @@ class LightningTableTriggerGeneratorSqlParser {
         return UpsertComponents(
             keyColumns, keyOldExpressions, keyNewExpressions,
             newInsertColumns, newInsertValues, newUpdateExpressions,
-            oldInsertColumns, oldInsertValues, oldUpdateExpressions
+            oldInsertColumns, oldInsertValues, oldUpdateExpressions,
         )
     }
 
@@ -407,7 +453,7 @@ class LightningTableTriggerGeneratorSqlParser {
             Triple(
                 columnDefinitions.keys.map { "`$it`" },
                 columnDefinitions.keys.map { "OLD.`$it`" },
-                columnDefinitions.keys.map { "NEW.`$it`" }
+                columnDefinitions.keys.map { "NEW.`$it`" },
             )
         }
     }
@@ -458,41 +504,60 @@ class LightningTableTriggerGeneratorSqlParser {
         baseTableName: String,
         lightningTableName: String,
         wherePredicates: Pair<String, String>,
-        upsertComponents: UpsertComponents
+        upsertComponents: UpsertComponents,
     ): Map<String, String> {
         val (oldRowPredicate, newRowPredicate) = wherePredicates
 
-        val oldUpsertStatement = TriggerGenerator().buildUpsertStatement(
-            lightningTableName,
-            upsertComponents.keyColumns,
-            upsertComponents.keyOldExpressions,
-            upsertComponents.oldInsertColumns,
-            upsertComponents.oldInsertValues,
-            upsertComponents.oldUpdateExpressions
-        )
+        val oldUpsertStatement =
+            TriggerGenerator().buildUpsertStatement(
+                lightningTableName,
+                upsertComponents.keyColumns,
+                upsertComponents.keyOldExpressions,
+                upsertComponents.oldInsertColumns,
+                upsertComponents.oldInsertValues,
+                upsertComponents.oldUpdateExpressions,
+            )
 
-        val newUpsertStatement = TriggerGenerator().buildUpsertStatement(
-            lightningTableName,
-            upsertComponents.keyColumns,
-            upsertComponents.keyNewExpressions,
-            upsertComponents.newInsertColumns,
-            upsertComponents.newInsertValues,
-            upsertComponents.newUpdateExpressions
-        )
+        val newUpsertStatement =
+            TriggerGenerator().buildUpsertStatement(
+                lightningTableName,
+                upsertComponents.keyColumns,
+                upsertComponents.keyNewExpressions,
+                upsertComponents.newInsertColumns,
+                upsertComponents.newInsertValues,
+                upsertComponents.newUpdateExpressions,
+            )
 
-        val cleanupStatement = buildCleanupStatement(
-            lightningTableName,
-            baseTableName,
-            upsertComponents.keyColumns,
-            upsertComponents.keyOldExpressions
-        )
+        val cleanupStatement =
+            buildCleanupStatement(
+                lightningTableName,
+                baseTableName,
+                upsertComponents.keyColumns,
+                upsertComponents.keyOldExpressions,
+            )
 
         val sanitizedTableName = sanitizeIdentifier(baseTableName)
 
+        val triggerGen = TriggerGenerator()
         return mapOf(
-            "insert" to TriggerGenerator().buildInsertTrigger(sanitizedTableName, baseTableName, newRowPredicate, newUpsertStatement),
-            "update" to TriggerGenerator().buildUpdateTrigger(sanitizedTableName, baseTableName, oldRowPredicate, oldUpsertStatement, newRowPredicate, newUpsertStatement, cleanupStatement),
-            "delete" to TriggerGenerator().buildDeleteTrigger(sanitizedTableName, baseTableName, oldRowPredicate, oldUpsertStatement, cleanupStatement)
+            "insert" to
+                triggerGen.buildInsertTrigger(
+                    sanitizedTableName, baseTableName,
+                    newRowPredicate, newUpsertStatement,
+                ),
+            "update" to
+                triggerGen.buildUpdateTrigger(
+                    sanitizedTableName, baseTableName,
+                    oldRowPredicate, oldUpsertStatement,
+                    newRowPredicate, newUpsertStatement,
+                    cleanupStatement,
+                ),
+            "delete" to
+                triggerGen.buildDeleteTrigger(
+                    sanitizedTableName, baseTableName,
+                    oldRowPredicate, oldUpsertStatement,
+                    cleanupStatement,
+                ),
         )
     }
 
@@ -500,16 +565,25 @@ class LightningTableTriggerGeneratorSqlParser {
         lightningTableName: String,
         baseTableName: String,
         keyColumns: List<String>,
-        keyOldExpressions: List<String>
+        keyOldExpressions: List<String>,
     ): String {
-        val summaryWhereClause = keyColumns.zip(keyOldExpressions)
-            .joinToString(" AND ") { (col, oldExpr) -> "$col = $oldExpr" }
-        val existsWhereClause = keyColumns.zip(keyOldExpressions)
-            .joinToString(" AND ") { (col, oldExpr) -> "$col = $oldExpr" }
-        return "DELETE FROM `$lightningTableName` WHERE $summaryWhereClause AND NOT EXISTS (SELECT 1 FROM `$baseTableName` WHERE $existsWhereClause);"
+        val summaryWhereClause =
+            keyColumns.zip(keyOldExpressions)
+                .joinToString(" AND ") { (col, oldExpr) -> "$col = $oldExpr" }
+        val existsWhereClause =
+            keyColumns.zip(keyOldExpressions)
+                .joinToString(" AND ") { (col, oldExpr) -> "$col = $oldExpr" }
+        return "DELETE FROM `$lightningTableName` " +
+            "WHERE $summaryWhereClause " +
+            "AND NOT EXISTS " +
+            "(SELECT 1 FROM `$baseTableName` " +
+            "WHERE $existsWhereClause);"
     }
 
-    private fun formatPreview(tableDdl: String, triggers: Map<String, String>): String {
+    private fun formatPreview(
+        tableDdl: String,
+        triggers: Map<String, String>,
+    ): String {
         return """-- Lightning table to create:
 $tableDdl
 
@@ -554,7 +628,10 @@ ${triggers["delete"]}"""
         return match?.groupValues?.get(1)?.trim()?.trimEnd(';', ' ', '\t', '\n', '\r')
     }
 
-    private fun prefixPredicateWithRowReference(expression: String, rowReference: String): String {
+    private fun prefixPredicateWithRowReference(
+        expression: String,
+        rowReference: String,
+    ): String {
         val withoutTableQualifiers = removeTableQualifiers(expression)
         val withPrefixedIdentifiers = prefixColumnIdentifiers(withoutTableQualifiers, rowReference)
         return "($withPrefixedIdentifiers)"
@@ -564,9 +641,17 @@ ${triggers["delete"]}"""
         return expression.replace(Regex("""`?(\w+)`?\s*\."""), "")
     }
 
-    private fun prefixColumnIdentifiers(expression: String, prefix: String): String {
+    private fun prefixColumnIdentifiers(
+        expression: String,
+        prefix: String,
+    ): String {
         val sqlKeywords = setOf("AND", "OR", "NOT", "IN", "IS", "NULL", "LIKE", "BETWEEN", "CASE", "WHEN", "THEN", "END", "TRUE", "FALSE")
-        val pattern = Regex("""`?([A-Za-z_][A-Za-z0-9_]*)`(?=\s*(=|<>|!=|<|>|<=|>=|IS|IN|LIKE|BETWEEN|\)|\s|${'$'}))""", RegexOption.IGNORE_CASE)
+        val pattern =
+            Regex(
+                """`?([A-Za-z_][A-Za-z0-9_]*)`""" +
+                    """(?=\s*(=|<>|!=|<|>|<=|>=|IS|IN|LIKE|BETWEEN|\)|\s|${'$'}))""",
+                RegexOption.IGNORE_CASE,
+            )
 
         return pattern.replace(expression) { matchResult ->
             val identifier = matchResult.groupValues[1].uppercase()
@@ -588,5 +673,3 @@ ${triggers["delete"]}"""
         return identifier.replace(Regex("[^a-zA-Z0-9_]"), "_")
     }
 }
-
-

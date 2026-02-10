@@ -4,7 +4,6 @@ import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 class LightningTablesService {
-
     fun ltTablesExists(): Boolean {
         return transaction {
             SchemaUtils.listTables().any {

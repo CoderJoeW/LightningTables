@@ -16,10 +16,11 @@ class LightningTableNamingTest {
 
     @Test
     fun `automatic naming for query without GROUP BY`() {
-        val query = """
+        val query =
+            """
             SELECT COUNT(*) as record_count
             FROM transactions
-        """.trimIndent()
+            """.trimIndent()
 
         val result = parser.generate(query)
 
@@ -29,10 +30,11 @@ class LightningTableNamingTest {
 
     @Test
     fun `automatic naming converts camelCase table names to snake_case`() {
-        val query = """
+        val query =
+            """
             SELECT COUNT(*) as total
             FROM userTransactions
-        """.trimIndent()
+            """.trimIndent()
 
         val result = parser.generate(query)
 
@@ -42,10 +44,11 @@ class LightningTableNamingTest {
 
     @Test
     fun `automatic naming handles table names with special characters`() {
-        val query = """
+        val query =
+            """
             SELECT COUNT(*) as total
             FROM user_transactions_2024
-        """.trimIndent()
+            """.trimIndent()
 
         val result = parser.generate(query)
 
@@ -55,10 +58,11 @@ class LightningTableNamingTest {
 
     @Test
     fun `automatic naming handles uppercase table names`() {
-        val query = """
+        val query =
+            """
             SELECT COUNT(*) as total
             FROM TRANSACTIONS
-        """.trimIndent()
+            """.trimIndent()
 
         val result = parser.generate(query)
 
@@ -69,10 +73,11 @@ class LightningTableNamingTest {
 
     @Test
     fun `custom table name is used when specified`() {
-        val query = """
+        val query =
+            """
             SELECT COUNT(*) as record_count
             FROM transactions
-        """.trimIndent()
+            """.trimIndent()
 
         val customName = "my_custom_summary_table"
         val result = parser.generate(query, lightningTable = customName)
@@ -83,10 +88,11 @@ class LightningTableNamingTest {
 
     @Test
     fun `custom table name with schema prefix`() {
-        val query = """
+        val query =
+            """
             SELECT COUNT(*) as total
             FROM transactions
-        """.trimIndent()
+            """.trimIndent()
 
         val customName = "analytics.transaction_summary"
         val result = parser.generate(query, lightningTable = customName)
@@ -97,10 +103,11 @@ class LightningTableNamingTest {
 
     @Test
     fun `custom table name with underscores`() {
-        val query = """
+        val query =
+            """
             SELECT COUNT(*) as total
             FROM transactions
-        """.trimIndent()
+            """.trimIndent()
 
         val customName = "lightning_table_summary_v2"
         val result = parser.generate(query, lightningTable = customName)
@@ -111,10 +118,11 @@ class LightningTableNamingTest {
 
     @Test
     fun `custom table name with COUNT aggregate generates correct structure`() {
-        val query = """
+        val query =
+            """
             SELECT COUNT(*) as record_count
             FROM transactions
-        """.trimIndent()
+            """.trimIndent()
 
         val customName = "tx_count"
         val result = parser.generate(query, lightningTable = customName)
@@ -127,10 +135,11 @@ class LightningTableNamingTest {
 
     @Test
     fun `custom table name appears in backfill context for non-grouped query`() {
-        val query = """
+        val query =
+            """
             SELECT COUNT(*) as record_count
             FROM transactions
-        """.trimIndent()
+            """.trimIndent()
 
         val customName = "backfill_test_summary"
         val result = parser.generate(query, lightningTable = customName)
@@ -140,10 +149,11 @@ class LightningTableNamingTest {
 
     @Test
     fun `custom table name with numbers and no GROUP BY`() {
-        val query = """
+        val query =
+            """
             SELECT COUNT(*) as total
             FROM transactions
-        """.trimIndent()
+            """.trimIndent()
 
         val customName = "summary_2024_q1"
         val result = parser.generate(query, lightningTable = customName)
@@ -154,10 +164,11 @@ class LightningTableNamingTest {
 
     @Test
     fun `custom table name with camelCase for non-grouped query`() {
-        val query = """
+        val query =
+            """
             SELECT COUNT(*) as total
             FROM transactions
-        """.trimIndent()
+            """.trimIndent()
 
         val customName = "TransactionCount"
         val result = parser.generate(query, lightningTable = customName)
@@ -168,10 +179,11 @@ class LightningTableNamingTest {
 
     @Test
     fun `custom table name with prefix for non-grouped query`() {
-        val query = """
+        val query =
+            """
             SELECT COUNT(*) as total
             FROM transactions
-        """.trimIndent()
+            """.trimIndent()
 
         val customName = "ltbl_transaction_count"
         val result = parser.generate(query, lightningTable = customName)

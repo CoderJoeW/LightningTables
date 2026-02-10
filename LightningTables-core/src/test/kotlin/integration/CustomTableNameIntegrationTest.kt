@@ -51,10 +51,11 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
         }
 
         // Verify table was created with automatic name
-        val tableExists = connect().use { conn ->
-            val rs = conn.metaData.getTables(null, null, "transactions_user_id_lightning", null)
-            rs.next()
-        }
+        val tableExists =
+            connect().use { conn ->
+                val rs = conn.metaData.getTables(null, null, "transactions_user_id_lightning", null)
+                rs.next()
+            }
         assertEquals(true, tableExists)
     }
 
@@ -72,10 +73,11 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
         }
 
         // Verify table was created with custom name
-        val tableExists = connect().use { conn ->
-            val rs = conn.metaData.getTables(null, null, customName, null)
-            rs.next()
-        }
+        val tableExists =
+            connect().use { conn ->
+                val rs = conn.metaData.getTables(null, null, customName, null)
+                rs.next()
+            }
         assertEquals(true, tableExists)
 
         // Clean up
@@ -107,14 +109,15 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
         }
 
         // Verify data in custom table
-        val customTableData = connect().use { conn ->
-            val rs = conn.createStatement().executeQuery("SELECT * FROM `$customName`")
-            val results = mutableMapOf<Int, BigDecimal>()
-            while (rs.next()) {
-                results[rs.getInt("user_id")] = rs.getBigDecimal("total_cost")
+        val customTableData =
+            connect().use { conn ->
+                val rs = conn.createStatement().executeQuery("SELECT * FROM `$customName`")
+                val results = mutableMapOf<Int, BigDecimal>()
+                while (rs.next()) {
+                    results[rs.getInt("user_id")] = rs.getBigDecimal("total_cost")
+                }
+                results
             }
-            results
-        }
 
         assertEquals(BigDecimal("25.50"), customTableData[1])
 
@@ -140,25 +143,27 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
         }
 
         // Insert and then delete a transaction
-        val insertedId = transaction {
-            TransactionsTable.insert {
-                it[userId] = 1
-                it[type] = TransactionType.DEBIT.name
-                it[service] = TransactionService.CALL.name
-                it[cost] = 15.00
-            } get TransactionsTable.id
-        }
+        val insertedId =
+            transaction {
+                TransactionsTable.insert {
+                    it[userId] = 1
+                    it[type] = TransactionType.DEBIT.name
+                    it[service] = TransactionService.CALL.name
+                    it[cost] = 15.00
+                } get TransactionsTable.id
+            }
 
         transaction {
             exec("DELETE FROM transactions WHERE id = $insertedId")
         }
 
         // Verify custom table is empty after delete
-        val customTableCount = connect().use { conn ->
-            val rs = conn.createStatement().executeQuery("SELECT COUNT(*) as cnt FROM `$customName`")
-            rs.next()
-            rs.getInt("cnt")
-        }
+        val customTableCount =
+            connect().use { conn ->
+                val rs = conn.createStatement().executeQuery("SELECT COUNT(*) as cnt FROM `$customName`")
+                rs.next()
+                rs.getInt("cnt")
+            }
 
         assertEquals(0, customTableCount)
 
@@ -206,14 +211,15 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
         }
 
         // Verify counts in custom table
-        val customTableData = connect().use { conn ->
-            val rs = conn.createStatement().executeQuery("SELECT * FROM `$customName`")
-            val results = mutableMapOf<Int, Long>()
-            while (rs.next()) {
-                results[rs.getInt("user_id")] = rs.getLong("record_count")
+        val customTableData =
+            connect().use { conn ->
+                val rs = conn.createStatement().executeQuery("SELECT * FROM `$customName`")
+                val results = mutableMapOf<Int, Long>()
+                while (rs.next()) {
+                    results[rs.getInt("user_id")] = rs.getLong("record_count")
+                }
+                results
             }
-            results
-        }
 
         assertEquals(2L, customTableData[1])
         assertEquals(1L, customTableData[2])
@@ -252,11 +258,12 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
         }
 
         // Verify custom table has data
-        val hasData = connect().use { conn ->
-            val rs = conn.createStatement().executeQuery("SELECT COUNT(*) as cnt FROM `$customName`")
-            rs.next()
-            rs.getInt("cnt") > 0
-        }
+        val hasData =
+            connect().use { conn ->
+                val rs = conn.createStatement().executeQuery("SELECT COUNT(*) as cnt FROM `$customName`")
+                rs.next()
+                rs.getInt("cnt") > 0
+            }
 
         assertEquals(true, hasData)
 
@@ -304,24 +311,26 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
         }
 
         // Query original aggregation
-        val originalResults = connect().use { conn ->
-            val rs = conn.createStatement().executeQuery(query)
-            val results = mutableMapOf<Int, BigDecimal>()
-            while (rs.next()) {
-                results[rs.getInt("user_id")] = rs.getBigDecimal("total_cost")
+        val originalResults =
+            connect().use { conn ->
+                val rs = conn.createStatement().executeQuery(query)
+                val results = mutableMapOf<Int, BigDecimal>()
+                while (rs.next()) {
+                    results[rs.getInt("user_id")] = rs.getBigDecimal("total_cost")
+                }
+                results
             }
-            results
-        }
 
         // Query custom lightning table
-        val lightningResults = connect().use { conn ->
-            val rs = conn.createStatement().executeQuery("SELECT * FROM `$customName`")
-            val results = mutableMapOf<Int, BigDecimal>()
-            while (rs.next()) {
-                results[rs.getInt("user_id")] = rs.getBigDecimal("total_cost")
+        val lightningResults =
+            connect().use { conn ->
+                val rs = conn.createStatement().executeQuery("SELECT * FROM `$customName`")
+                val results = mutableMapOf<Int, BigDecimal>()
+                while (rs.next()) {
+                    results[rs.getInt("user_id")] = rs.getBigDecimal("total_cost")
+                }
+                results
             }
-            results
-        }
 
         // Verify they match
         assertEquals(originalResults, lightningResults)
@@ -360,11 +369,12 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
         }
 
         // Verify count in custom table
-        val count = connect().use { conn ->
-            val rs = conn.createStatement().executeQuery("SELECT * FROM `$customName`")
-            rs.next()
-            rs.getLong("record_count")
-        }
+        val count =
+            connect().use { conn ->
+                val rs = conn.createStatement().executeQuery("SELECT * FROM `$customName`")
+                rs.next()
+                rs.getLong("record_count")
+            }
 
         assertEquals(1L, count)
 
@@ -394,14 +404,16 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
         }
 
         // Verify both tables exist
-        val table1Exists = connect().use { conn ->
-            val rs = conn.metaData.getTables(null, null, customName1, null)
-            rs.next()
-        }
-        val table2Exists = connect().use { conn ->
-            val rs = conn.metaData.getTables(null, null, customName2, null)
-            rs.next()
-        }
+        val table1Exists =
+            connect().use { conn ->
+                val rs = conn.metaData.getTables(null, null, customName1, null)
+                rs.next()
+            }
+        val table2Exists =
+            connect().use { conn ->
+                val rs = conn.metaData.getTables(null, null, customName2, null)
+                rs.next()
+            }
 
         assertEquals(true, table1Exists)
         assertEquals(true, table2Exists)
@@ -431,10 +443,11 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
         }
 
         // Verify table was created with custom name
-        val tableExists = connect().use { conn ->
-            val rs = conn.metaData.getTables(null, null, customName, null)
-            rs.next()
-        }
+        val tableExists =
+            connect().use { conn ->
+                val rs = conn.metaData.getTables(null, null, customName, null)
+                rs.next()
+            }
         assertEquals(true, tableExists)
 
         // Clean up
@@ -458,10 +471,11 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
         }
 
         // Verify table structure is correct with custom name
-        val tableExists = connect().use { conn ->
-            val rs = conn.metaData.getTables(null, null, customName, null)
-            rs.next()
-        }
+        val tableExists =
+            connect().use { conn ->
+                val rs = conn.metaData.getTables(null, null, customName, null)
+                rs.next()
+            }
         assertEquals(true, tableExists)
 
         // Clean up
@@ -510,10 +524,11 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
             exec(result.lightningTable)
         }
 
-        val tableExists = connect().use { conn ->
-            val rs = conn.metaData.getTables(null, null, customName, null)
-            rs.next()
-        }
+        val tableExists =
+            connect().use { conn ->
+                val rs = conn.metaData.getTables(null, null, customName, null)
+                rs.next()
+            }
         assertEquals(true, tableExists)
 
         // Clean up

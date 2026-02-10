@@ -3,9 +3,9 @@ import com.coderjoe.lightningtables.core.database.TransactionsTable
 import com.coderjoe.lightningtables.core.database.UsersTable
 import com.coderjoe.lightningtables.core.database.seeders.TransactionsSeeder
 import com.coderjoe.lightningtables.core.queries
-import org.jetbrains.exposed.v1.jdbc.deleteAll
 import com.coderjoe.lightningtables.core.services.LightningTableTriggerGeneratorSqlParser
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -19,11 +19,12 @@ class IntegrationTest : DockerComposeTestBase() {
 
     @Test
     fun `sanity check - can query seeded user data`() {
-        val row = transaction {
-            UsersTable.selectAll()
-                .where { UsersTable.firstName eq "John" }
-                .single()
-        }
+        val row =
+            transaction {
+                UsersTable.selectAll()
+                    .where { UsersTable.firstName eq "John" }
+                    .single()
+            }
 
         assertEquals("John", row[UsersTable.firstName])
         assertEquals("Doe", row[UsersTable.lastName])
@@ -63,7 +64,7 @@ class IntegrationTest : DockerComposeTestBase() {
 
         transaction {
             exec(result.lightningTable)
-            result.triggers.values.forEach{ exec(it)}
+            result.triggers.values.forEach { exec(it) }
         }
 
         connect().use { conn ->

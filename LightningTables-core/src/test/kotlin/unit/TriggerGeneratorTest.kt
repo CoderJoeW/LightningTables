@@ -612,7 +612,10 @@ class TriggerGeneratorTest {
             """.trimIndent()
 
         val cleanupStatement =
-            "DELETE FROM summary_table WHERE user_id = OLD.user_id AND NOT EXISTS (SELECT 1 FROM transactions WHERE user_id = OLD.user_id);"
+            "DELETE FROM summary_table " +
+                "WHERE user_id = OLD.user_id " +
+                "AND NOT EXISTS (SELECT 1 FROM transactions " +
+                "WHERE user_id = OLD.user_id);"
 
         val result =
             triggerGenerator.buildUpdateTrigger(
@@ -720,7 +723,12 @@ class TriggerGeneratorTest {
             """.trimIndent()
 
         val cleanupStatement =
-            "DELETE FROM product_summary WHERE product_id = OLD.product_id AND category_id = OLD.category_id AND NOT EXISTS (SELECT 1 FROM sales WHERE product_id = OLD.product_id AND category_id = OLD.category_id);"
+            "DELETE FROM product_summary " +
+                "WHERE product_id = OLD.product_id " +
+                "AND category_id = OLD.category_id " +
+                "AND NOT EXISTS (SELECT 1 FROM sales " +
+                "WHERE product_id = OLD.product_id " +
+                "AND category_id = OLD.category_id);"
 
         val result =
             triggerGenerator.buildUpdateTrigger(
@@ -774,7 +782,10 @@ class TriggerGeneratorTest {
             """.trimIndent()
 
         val cleanupStatement =
-            "DELETE FROM `user-summary` WHERE `user-id` = OLD.`user-id` AND NOT EXISTS (SELECT 1 FROM `user-transactions` WHERE `user-id` = OLD.`user-id`);"
+            "DELETE FROM `user-summary` " +
+                "WHERE `user-id` = OLD.`user-id` " +
+                "AND NOT EXISTS (SELECT 1 FROM `user-transactions` " +
+                "WHERE `user-id` = OLD.`user-id`);"
 
         val result =
             triggerGenerator.buildUpdateTrigger(
@@ -823,7 +834,10 @@ class TriggerGeneratorTest {
             """.trimIndent()
 
         val cleanupStatement =
-            "DELETE FROM summary_table WHERE user_id = OLD.user_id AND NOT EXISTS (SELECT 1 FROM transactions WHERE user_id = OLD.user_id);"
+            "DELETE FROM summary_table " +
+                "WHERE user_id = OLD.user_id " +
+                "AND NOT EXISTS (SELECT 1 FROM transactions " +
+                "WHERE user_id = OLD.user_id);"
 
         val result =
             triggerGenerator.buildDeleteTrigger(
@@ -901,7 +915,12 @@ class TriggerGeneratorTest {
             """.trimIndent()
 
         val cleanupStatement =
-            "DELETE FROM product_summary WHERE product_id = OLD.product_id AND category_id = OLD.category_id AND NOT EXISTS (SELECT 1 FROM sales WHERE product_id = OLD.product_id AND category_id = OLD.category_id);"
+            "DELETE FROM product_summary " +
+                "WHERE product_id = OLD.product_id " +
+                "AND category_id = OLD.category_id " +
+                "AND NOT EXISTS (SELECT 1 FROM sales " +
+                "WHERE product_id = OLD.product_id " +
+                "AND category_id = OLD.category_id);"
 
         val result =
             triggerGenerator.buildDeleteTrigger(
@@ -940,7 +959,10 @@ class TriggerGeneratorTest {
             """.trimIndent()
 
         val cleanupStatement =
-            "DELETE FROM `user-summary` WHERE `user-id` = OLD.`user-id` AND NOT EXISTS (SELECT 1 FROM `user-transactions` WHERE `user-id` = OLD.`user-id`);"
+            "DELETE FROM `user-summary` " +
+                "WHERE `user-id` = OLD.`user-id` " +
+                "AND NOT EXISTS (SELECT 1 FROM `user-transactions` " +
+                "WHERE `user-id` = OLD.`user-id`);"
 
         val result =
             triggerGenerator.buildDeleteTrigger(
@@ -1028,7 +1050,10 @@ class TriggerGeneratorTest {
             """.trimIndent()
 
         val cleanupStatement =
-            "DELETE FROM complex_summary WHERE user_id = OLD.user_id AND NOT EXISTS (SELECT 1 FROM transactions WHERE user_id = OLD.user_id);"
+            "DELETE FROM complex_summary " +
+                "WHERE user_id = OLD.user_id " +
+                "AND NOT EXISTS (SELECT 1 FROM transactions " +
+                "WHERE user_id = OLD.user_id);"
 
         val result =
             triggerGenerator.buildDeleteTrigger(

@@ -58,7 +58,10 @@ class SumCostByUserQueryTest : DockerComposeTestBase() {
         assertEquals(original, lightning, "Lightning table should match original query $context".trim())
     }
 
-    private fun insertTransaction(userId: Int, cost: Double) {
+    private fun insertTransaction(
+        userId: Int,
+        cost: Double,
+    ) {
         transaction {
             TransactionsTable.insert {
                 it[TransactionsTable.userId] = userId
