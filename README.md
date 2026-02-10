@@ -3,6 +3,8 @@
 
 ---
 
+[![Integration Tests](https://github.com/CoderJoeW/LightningTables/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/CoderJoeW/LightningTables/actions/workflows/integration-tests.yml)
+
 # ⚡ LightningTables (aka the summary slayer)
 
 **Kill summary tables. Get instant, always-up-to-date results.**
