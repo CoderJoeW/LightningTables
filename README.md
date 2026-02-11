@@ -6,6 +6,7 @@
 [![Tests](https://github.com/CoderJoeW/LightningTables/actions/workflows/tests.yml/badge.svg)](https://github.com/CoderJoeW/LightningTables/actions/workflows/tests.yml)
 [![Code Quality](https://github.com/CoderJoeW/LightningTables/actions/workflows/code-quality.yml/badge.svg)](https://github.com/CoderJoeW/LightningTables/actions/workflows/code-quality.yml)
 [![Coverage](https://github.com/CoderJoeW/LightningTables/actions/workflows/coverage.yml/badge.svg)](https://github.com/CoderJoeW/LightningTables/actions/workflows/coverage.yml)
+![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)
 
 # ⚡ LightningTables (aka the summary slayer)
 
