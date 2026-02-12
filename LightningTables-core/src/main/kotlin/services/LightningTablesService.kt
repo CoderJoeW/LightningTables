@@ -20,7 +20,10 @@ class LightningTablesService {
         }
     }
 
-    fun insert(result: TriggerGeneratorResult, query: String) {
+    fun insert(
+        result: TriggerGeneratorResult,
+        query: String,
+    ) {
         transaction {
             LtTablesTable.insert {
                 it[LtTablesTable.ltTableName] = result.lightningTableName
