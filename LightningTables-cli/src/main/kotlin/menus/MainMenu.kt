@@ -35,7 +35,27 @@ object MainMenu {
                     BackfillService().backfill(result.backfillContext, result.triggers.values.toList())
                 }
                 "2" -> {
-                    println("Listing LT Tables")
+                    val entries = lightningTableService.list()
+
+                    if (entries.isEmpty()) {
+                        println("No lightning table found")
+                        return
+                    }
+
+                    println("Lightning tables:")
+                    entries.forEach {
+                        println(
+                            """
+                            ID: ${it.id}
+                            Lightning Table Name: ${it.tableName}
+                            Base Table Name: ${it.baseTableName}
+                            Query: ${it.query}
+                            Insert Trigger Name: ${it.insertTriggerName}
+                            Update Trigger Name: ${it.updateTriggerName}
+                            Delete Trigger Name: ${it.deleteTriggerName}
+                            """.trimIndent(),
+                        )
+                    }
                 }
                 "3" -> {
                     println("Exiting.")
