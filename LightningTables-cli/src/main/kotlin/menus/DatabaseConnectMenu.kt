@@ -14,7 +14,7 @@ object DatabaseConnectMenu {
                     DatabaseConnection(
                         host = ConsoleInputHelper.getInputWithLabel("Host: "),
                         username = ConsoleInputHelper.getInputWithLabel("Username: "),
-                        password = ConsoleInputHelper.getInputWithLabel("Password: "),
+                        password = ConsoleInputHelper.getPasswordWithLabel("Password: "),
                         database = ConsoleInputHelper.getInputWithLabel("Database: "),
                         port = ConsoleInputHelper.getInputWithLabel("Port: ").toInt(),
                     )
