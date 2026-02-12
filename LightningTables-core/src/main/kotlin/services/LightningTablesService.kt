@@ -3,6 +3,7 @@ package com.coderjoe.lightningtables.core.services
 import com.coderjoe.lightningtables.core.database.model.LtTablesTable
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 class LightningTablesService {
@@ -36,9 +37,35 @@ class LightningTablesService {
         }
     }
 
+    fun list(): List<LtTableEntry> {
+        return transaction {
+            LtTablesTable.selectAll().map { row ->
+                LtTableEntry(
+                    id = row[LtTablesTable.id],
+                    tableName = row[LtTablesTable.ltTableName],
+                    baseTableName = row[LtTablesTable.baseTableName],
+                    query = row[LtTablesTable.query],
+                    insertTriggerName = row[LtTablesTable.insertTriggerName],
+                    updateTriggerName = row[LtTablesTable.updateTriggerName],
+                    deleteTriggerName = row[LtTablesTable.deleteTriggerName],
+                )
+            }
+        }
+    }
+
     fun createLightningTable(result: TriggerGeneratorResult) {
         transaction {
             exec(result.lightningTable)
         }
     }
 }
+
+data class LtTableEntry(
+    val id: Int,
+    val tableName: String,
+    val baseTableName: String,
+    val query: String,
+    val insertTriggerName: String,
+    val updateTriggerName: String,
+    val deleteTriggerName: String,
+)
