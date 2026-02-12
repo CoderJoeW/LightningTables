@@ -32,4 +32,10 @@ class LightningTablesService {
             }
         }
     }
+
+    fun createLightningTable(result: TriggerGeneratorResult) {
+        transaction {
+            exec(result.lightningTable)
+        }
+    }
 }
