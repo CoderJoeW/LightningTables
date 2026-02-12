@@ -8,7 +8,7 @@ object DatabaseConnectMenu {
     fun load(): Boolean {
         var tryCount = 0
 
-        while(tryCount < 3) {
+        while (tryCount < 3) {
             try {
                 val credentials =
                     DatabaseConnection(
