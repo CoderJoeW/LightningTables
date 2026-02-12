@@ -1,6 +1,8 @@
 package com.coderjoe.lightningtables.core.services
 
+import com.coderjoe.lightningtables.core.database.model.LtTablesTable
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
+import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 class LightningTablesService {
@@ -14,22 +16,19 @@ class LightningTablesService {
 
     fun createLtTables() {
         transaction {
-            val conn = this.connection.connection as java.sql.Connection
-            conn.createStatement().use { stmt ->
-                stmt.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS lt_tables (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        table_name VARCHAR(255) NOT NULL,
-                        base_table_name VARCHAR(255) NOT NULL,
-                        query TEXT NOT NULL,
-                        insert_trigger_name VARCHAR(255) NOT NULL,
-                        update_trigger_name VARCHAR(255) NOT NULL,
-                        delete_trigger_name VARCHAR(255) NOT NULL,
-                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-                    """.trimIndent(),
-                )
+            SchemaUtils.create(LtTablesTable)
+        }
+    }
+
+    fun insert(result: TriggerGeneratorResult, query: String) {
+        transaction {
+            LtTablesTable.insert {
+                it[LtTablesTable.ltTableName] = result.lightningTableName
+                it[LtTablesTable.baseTableName] = result.backfillContext.baseTableName
+                it[LtTablesTable.query] = query
+                it[LtTablesTable.insertTriggerName] = "${result.lightningTableName}_after_insert_lightning"
+                it[LtTablesTable.updateTriggerName] = "${result.lightningTableName}_after_update_lightning"
+                it[LtTablesTable.deleteTriggerName] = "${result.lightningTableName}_after_delete_lightning"
             }
         }
     }
