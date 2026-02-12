@@ -5,4 +5,9 @@ object ConsoleInputHelper {
         print(title)
         return readln()
     }
+
+    fun getPasswordWithLabel(title: String): String {
+        print(title)
+        return String(System.console()?.readPassword() ?: readln().toCharArray())
+    }
 }
