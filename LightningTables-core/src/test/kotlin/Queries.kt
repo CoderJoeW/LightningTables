@@ -38,4 +38,10 @@ val queries =
             WHERE type = 'DEBIT' AND service = 'CALL'
             GROUP BY user_id
             """.trimIndent(),
+        "sumAndCountByUserNoAlias" to
+            """
+            SELECT SUM(cost), COUNT(*), user_id
+            FROM transactions
+            GROUP BY user_id
+            """.trimIndent(),
     )
