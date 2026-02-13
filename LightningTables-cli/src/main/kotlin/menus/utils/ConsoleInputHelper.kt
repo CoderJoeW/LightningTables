@@ -21,6 +21,7 @@ object ConsoleInputHelper {
             println("  ${index + 1}. ${displayMapper(item)}")
         }
         println("  0. Cancel")
+        println()
         val input = getInputWithLabel("Select: ")
         val index = input.toIntOrNull()?.minus(1) ?: return null
         return items.getOrNull(index)
