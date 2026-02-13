@@ -31,4 +31,11 @@ val queries =
             SELECT SUM(cost) as total_cost
             FROM transactions
             """.trimIndent(),
+        "sumDebitCallCostByUser" to
+            """
+            SELECT SUM(cost) as total_cost, user_id
+            FROM transactions
+            WHERE type = 'DEBIT' AND service = 'CALL'
+            GROUP BY user_id
+            """.trimIndent(),
     )
