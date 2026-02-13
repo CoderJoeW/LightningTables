@@ -73,13 +73,12 @@ class LightningTableTriggerGeneratorSqlParser {
 
         val wherePredicates = buildWherePredicates(parsedQuery.whereClause)
         val upsertComponents = buildUpsertComponents(columnDefinitions, parsedQuery.aggregates)
-        val sanitizedBaseTableName = sanitizeIdentifier(parsedQuery.baseTableName)
         val triggers = buildTriggers(parsedQuery.baseTableName, lightningTableName, wherePredicates, upsertComponents)
         val triggerNames =
             mapOf(
-                "insert" to "${sanitizedBaseTableName}_after_insert_lightning",
-                "update" to "${sanitizedBaseTableName}_after_update_lightning",
-                "delete" to "${sanitizedBaseTableName}_after_delete_lightning",
+                "insert" to "${lightningTableName}_after_insert",
+                "update" to "${lightningTableName}_after_update",
+                "delete" to "${lightningTableName}_after_delete",
             )
 
         return TriggerGeneratorResult(
@@ -545,25 +544,23 @@ class LightningTableTriggerGeneratorSqlParser {
                 upsertComponents.keyOldExpressions,
             )
 
-        val sanitizedTableName = sanitizeIdentifier(baseTableName)
-
         val triggerGen = TriggerGenerator()
         return mapOf(
             "insert" to
                 triggerGen.buildInsertTrigger(
-                    sanitizedTableName, baseTableName,
+                    lightningTableName, baseTableName,
                     newRowPredicate, newUpsertStatement,
                 ),
             "update" to
                 triggerGen.buildUpdateTrigger(
-                    sanitizedTableName, baseTableName,
+                    lightningTableName, baseTableName,
                     oldRowPredicate, oldUpsertStatement,
                     newRowPredicate, newUpsertStatement,
                     cleanupStatement,
                 ),
             "delete" to
                 triggerGen.buildDeleteTrigger(
-                    sanitizedTableName, baseTableName,
+                    lightningTableName, baseTableName,
                     oldRowPredicate, oldUpsertStatement,
                     cleanupStatement,
                 ),
