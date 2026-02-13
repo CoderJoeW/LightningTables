@@ -139,11 +139,20 @@ abstract class DockerComposeTestBase {
 
         fun cleanDatabase() {
             connect().use { connection ->
+                // Drop any triggers on the transactions table left by previous tests
+                val triggerNames = mutableListOf<String>()
                 connection.createStatement().use { statement ->
-                    // Drop any triggers and lightning tables left by previous tests
-                    statement.execute("DROP TRIGGER IF EXISTS transactions_after_insert_lightning")
-                    statement.execute("DROP TRIGGER IF EXISTS transactions_after_update_lightning")
-                    statement.execute("DROP TRIGGER IF EXISTS transactions_after_delete_lightning")
+                    val rs = statement.executeQuery(
+                        "SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE EVENT_OBJECT_TABLE = 'transactions'",
+                    )
+                    while (rs.next()) {
+                        triggerNames.add(rs.getString("TRIGGER_NAME"))
+                    }
+                }
+                connection.createStatement().use { statement ->
+                    triggerNames.forEach { statement.execute("DROP TRIGGER IF EXISTS `$it`") }
+
+                    // Drop any lightning tables left by previous tests
                     statement.execute("DROP TABLE IF EXISTS transactions_user_id_lightning")
                     statement.execute("DROP TABLE IF EXISTS transactions_lightning")
 
