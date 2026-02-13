@@ -142,9 +142,10 @@ abstract class DockerComposeTestBase {
                 // Drop any triggers on the transactions table left by previous tests
                 val triggerNames = mutableListOf<String>()
                 connection.createStatement().use { statement ->
-                    val rs = statement.executeQuery(
-                        "SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE EVENT_OBJECT_TABLE = 'transactions'",
-                    )
+                    val rs =
+                        statement.executeQuery(
+                            "SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE EVENT_OBJECT_TABLE = 'transactions'",
+                        )
                     while (rs.next()) {
                         triggerNames.add(rs.getString("TRIGGER_NAME"))
                     }
