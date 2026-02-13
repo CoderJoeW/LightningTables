@@ -1,7 +1,9 @@
 package com.coderjoe.lightningtables.core.services
 
 import com.coderjoe.lightningtables.core.database.model.LtTablesTable
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -56,6 +58,21 @@ class LightningTablesService {
     fun createLightningTable(result: TriggerGeneratorResult) {
         transaction {
             exec(result.lightningTable)
+        }
+    }
+
+    fun delete(entry: LtTableEntry): Boolean {
+        return try {
+            transaction {
+                exec("DROP TRIGGER IF EXISTS `${entry.insertTriggerName}`")
+                exec("DROP TRIGGER IF EXISTS `${entry.updateTriggerName}`")
+                exec("DROP TRIGGER IF EXISTS `${entry.deleteTriggerName}`")
+                exec("DROP TABLE IF EXISTS `${entry.tableName}`")
+                LtTablesTable.deleteWhere { LtTablesTable.id eq entry.id }
+            }
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 }
