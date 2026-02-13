@@ -40,7 +40,7 @@ object MainMenu {
 
                     if (entries.isEmpty()) {
                         println("No lightning table found")
-                        return
+                        continue
                     }
 
                     println("Lightning tables:")
@@ -63,7 +63,7 @@ object MainMenu {
 
                     if (entries.isEmpty()) {
                         println("No lightning tables found")
-                        return
+                        continue
                     }
 
                     val selected =
@@ -72,21 +72,22 @@ object MainMenu {
                             entries,
                         ) { "${it.tableName} (base: ${it.baseTableName})" }
 
-                    if (selected != null) {
-                        val confirm =
-                            ConsoleInputHelper.getInputWithLabel(
-                                "Are you sure you want to delete '${selected.tableName}'? (y/n): ",
-                            )
-                        if (confirm.lowercase() == "y") {
-                            val success = lightningTableService.delete(selected)
-                            if (success) {
-                                println("Lightning table '${selected.tableName}' deleted successfully.")
-                            } else {
-                                println("Failed to delete lightning table '${selected.tableName}'.")
-                            }
-                        } else {
-                            println("Delete cancelled.")
-                        }
+                    if (selected == null) continue
+
+                    val confirm =
+                        ConsoleInputHelper.getInputWithLabel(
+                            "Are you sure you want to delete '${selected.tableName}'? (y/n): ",
+                        )
+                    if (confirm.lowercase() != "y") {
+                        println("Delete cancelled.")
+                        continue
+                    }
+
+                    val success = lightningTableService.delete(selected)
+                    if (success) {
+                        println("Lightning table '${selected.tableName}' deleted successfully.")
+                    } else {
+                        println("Failed to delete lightning table '${selected.tableName}'.")
                     }
                 }
                 "4" -> {
