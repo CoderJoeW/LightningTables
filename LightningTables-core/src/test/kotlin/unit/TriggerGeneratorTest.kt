@@ -312,7 +312,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `summary_table_after_insert_lightning`
+                        CREATE TRIGGER `summary_table_after_insert`
                         AFTER INSERT ON `transactions`
                         FOR EACH ROW
                         BEGIN
@@ -346,7 +346,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `user_stats_after_insert_lightning`
+                        CREATE TRIGGER `user_stats_after_insert`
                         AFTER INSERT ON `orders`
                         FOR EACH ROW
                         BEGIN
@@ -380,7 +380,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `category_summary_after_insert_lightning`
+                        CREATE TRIGGER `category_summary_after_insert`
                         AFTER INSERT ON `products`
                         FOR EACH ROW
                         BEGIN
@@ -414,7 +414,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `valid_entries_after_insert_lightning`
+                        CREATE TRIGGER `valid_entries_after_insert`
                         AFTER INSERT ON `raw_data`
                         FOR EACH ROW
                         BEGIN
@@ -448,7 +448,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `all_records_after_insert_lightning`
+                        CREATE TRIGGER `all_records_after_insert`
                         AFTER INSERT ON `events`
                         FOR EACH ROW
                         BEGIN
@@ -496,7 +496,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `complex_summary_after_insert_lightning`
+                        CREATE TRIGGER `complex_summary_after_insert`
                         AFTER INSERT ON `transactions`
                         FOR EACH ROW
                         BEGIN
@@ -544,7 +544,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `user-summary_after_insert_lightning`
+                        CREATE TRIGGER `user-summary_after_insert`
                         AFTER INSERT ON `user-transactions`
                         FOR EACH ROW
                         BEGIN
@@ -578,7 +578,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `date_summary_after_insert_lightning`
+                        CREATE TRIGGER `date_summary_after_insert`
                         AFTER INSERT ON `events`
                         FOR EACH ROW
                         BEGIN
@@ -630,7 +630,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `summary_table_after_update_lightning`
+                        CREATE TRIGGER `summary_table_after_update`
                         AFTER UPDATE ON `transactions`
                         FOR EACH ROW
                         BEGIN
@@ -684,7 +684,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `user_stats_after_update_lightning`
+                        CREATE TRIGGER `user_stats_after_update`
                         AFTER UPDATE ON `orders`
                         FOR EACH ROW
                         BEGIN
@@ -743,7 +743,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `product_summary_after_update_lightning`
+                        CREATE TRIGGER `product_summary_after_update`
                         AFTER UPDATE ON `sales`
                         FOR EACH ROW
                         BEGIN
@@ -800,7 +800,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `user-summary_after_update_lightning`
+                        CREATE TRIGGER `user-summary_after_update`
                         AFTER UPDATE ON `user-transactions`
                         FOR EACH ROW
                         BEGIN
@@ -850,7 +850,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `summary_table_after_delete_lightning`
+                        CREATE TRIGGER `summary_table_after_delete`
                         AFTER DELETE ON `transactions`
                         FOR EACH ROW
                         BEGIN
@@ -889,7 +889,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `user_stats_after_delete_lightning`
+                        CREATE TRIGGER `user_stats_after_delete`
                         AFTER DELETE ON `orders`
                         FOR EACH ROW
                         BEGIN
@@ -933,7 +933,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `product_summary_after_delete_lightning`
+                        CREATE TRIGGER `product_summary_after_delete`
                         AFTER DELETE ON `sales`
                         FOR EACH ROW
                         BEGIN
@@ -975,7 +975,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `user-summary_after_delete_lightning`
+                        CREATE TRIGGER `user-summary_after_delete`
                         AFTER DELETE ON `user-transactions`
                         FOR EACH ROW
                         BEGIN
@@ -1014,7 +1014,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `all_records_after_delete_lightning`
+                        CREATE TRIGGER `all_records_after_delete`
                         AFTER DELETE ON `events`
                         FOR EACH ROW
                         BEGIN
@@ -1066,7 +1066,7 @@ class TriggerGeneratorTest {
 
         val expected =
             """
-                        CREATE TRIGGER `complex_summary_after_delete_lightning`
+                        CREATE TRIGGER `complex_summary_after_delete`
                         AFTER DELETE ON `transactions`
                         FOR EACH ROW
                         BEGIN
