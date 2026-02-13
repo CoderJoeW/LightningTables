@@ -1,10 +1,10 @@
 package com.coderjoe.lightningtables.core.integration
 
+import com.coderjoe.lightningtables.core.database.TransactionsTable
 import com.coderjoe.lightningtables.core.queries
 import com.coderjoe.lightningtables.core.services.LightningTableTriggerGeneratorSqlParser
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import com.coderjoe.lightningtables.core.database.TransactionsTable
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -26,7 +26,10 @@ class SumCostByUserAtTimestampQueryTest : DockerComposeTestBase() {
     }
 
     /** Inserts a transaction with updated_at explicitly set to the target timestamp (matches WHERE clause). */
-    private fun insertTransactionAtTimestamp(userId: Int, cost: Double) {
+    private fun insertTransactionAtTimestamp(
+        userId: Int,
+        cost: Double,
+    ) {
         connect().use { conn ->
             conn.createStatement().executeUpdate(
                 "INSERT INTO transactions (user_id, type, service, cost, updated_at) " +
@@ -36,7 +39,10 @@ class SumCostByUserAtTimestampQueryTest : DockerComposeTestBase() {
     }
 
     /** Inserts a transaction with default updated_at (NOW()), which will NOT match the WHERE clause. */
-    private fun insertTransaction(userId: Int, cost: Double) {
+    private fun insertTransaction(
+        userId: Int,
+        cost: Double,
+    ) {
         connect().use { conn ->
             conn.createStatement().executeUpdate(
                 "INSERT INTO transactions (user_id, type, service, cost) " +

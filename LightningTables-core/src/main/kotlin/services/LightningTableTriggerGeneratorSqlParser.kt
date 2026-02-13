@@ -73,7 +73,8 @@ class LightningTableTriggerGeneratorSqlParser {
 
         val wherePredicates = buildWherePredicates(parsedQuery.whereClause)
         val upsertComponents = buildUpsertComponents(columnDefinitions, parsedQuery.aggregates)
-        val triggers = buildTriggers(parsedQuery.baseTableName, lightningTableName, wherePredicates, upsertComponents, parsedQuery.whereClause)
+        val triggers =
+            buildTriggers(parsedQuery.baseTableName, lightningTableName, wherePredicates, upsertComponents, parsedQuery.whereClause)
         val triggerNames =
             mapOf(
                 "insert" to "${lightningTableName}_after_insert",
