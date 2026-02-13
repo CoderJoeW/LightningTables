@@ -32,9 +32,9 @@ class LightningTablesService {
                 it[LtTablesTable.ltTableName] = result.lightningTableName
                 it[LtTablesTable.baseTableName] = result.backfillContext.baseTableName
                 it[LtTablesTable.query] = query
-                it[LtTablesTable.insertTriggerName] = "${result.lightningTableName}_after_insert_lightning"
-                it[LtTablesTable.updateTriggerName] = "${result.lightningTableName}_after_update_lightning"
-                it[LtTablesTable.deleteTriggerName] = "${result.lightningTableName}_after_delete_lightning"
+                it[LtTablesTable.insertTriggerName] = result.triggerNames["insert"]!!
+                it[LtTablesTable.updateTriggerName] = result.triggerNames["update"]!!
+                it[LtTablesTable.deleteTriggerName] = result.triggerNames["delete"]!!
             }
         }
     }
