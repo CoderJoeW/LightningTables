@@ -6,7 +6,7 @@
 
     <groupId>com.coderjoe.lightningtables.cli</groupId>
     <artifactId>LightningTables-cli</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>v0.0.2-alpha</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
