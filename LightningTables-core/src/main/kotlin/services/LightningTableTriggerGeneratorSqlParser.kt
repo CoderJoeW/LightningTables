@@ -21,6 +21,7 @@ data class TriggerGeneratorResult(
     val lightningTableName: String,
     val lightningTable: String,
     val triggers: Map<String, String>,
+    val triggerNames: Map<String, String>,
     val preview: String,
     val backfillContext: BackfillContext,
 )
@@ -72,12 +73,20 @@ class LightningTableTriggerGeneratorSqlParser {
 
         val wherePredicates = buildWherePredicates(parsedQuery.whereClause)
         val upsertComponents = buildUpsertComponents(columnDefinitions, parsedQuery.aggregates)
+        val sanitizedBaseTableName = sanitizeIdentifier(parsedQuery.baseTableName)
         val triggers = buildTriggers(parsedQuery.baseTableName, lightningTableName, wherePredicates, upsertComponents)
+        val triggerNames =
+            mapOf(
+                "insert" to "${sanitizedBaseTableName}_after_insert_lightning",
+                "update" to "${sanitizedBaseTableName}_after_update_lightning",
+                "delete" to "${sanitizedBaseTableName}_after_delete_lightning",
+            )
 
         return TriggerGeneratorResult(
             lightningTableName = lightningTableName,
             lightningTable = tableDdl,
             triggers = triggers,
+            triggerNames = triggerNames,
             preview = formatPreview(tableDdl, triggers),
             backfillContext =
                 BackfillContext(
