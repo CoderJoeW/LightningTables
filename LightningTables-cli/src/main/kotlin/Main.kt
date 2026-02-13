@@ -8,6 +8,12 @@ import com.coderjoe.lightningtables.core.services.LightningTablesService
 val lightningTableService = LightningTablesService()
 
 fun main() {
+    println()
+    println("=".repeat(50))
+    println("  LightningTables - Materialized View Engine")
+    println("=".repeat(50))
+    println()
+
     val validatedCredentials = DatabaseConnectMenu.load()
 
     if (!validatedCredentials) {
@@ -21,20 +27,20 @@ fun main() {
 }
 
 fun validateApplicationTablesExist() {
-    println("Checking if application tables exist")
+    println("Checking if application tables exist...")
 
     if (!lightningTableService.ltTablesExists()) {
         println(
             """
-            You can use this application without the application tables
-            but you will not be able to delete or manage any LT tables created.
-            You will only be able to create new LT tables.
-            If you choose not to create the application tables,
-            you can create them later by running this application again.
-        """,
+            |Note: You can use this application without the application tables,
+            |but you will not be able to delete or manage any LT tables created.
+            |You will only be able to create new LT tables.
+            |You can create them later by running this application again.
+            """.trimMargin(),
         )
+        println()
 
-        when (ConsoleInputHelper.getInputWithLabel("No lightning tables exist. Would you like to create them? (y/n)")) {
+        when (ConsoleInputHelper.getInputWithLabel("No lightning tables exist. Would you like to create them? (y/n): ")) {
             "y" -> {
                 println("Creating tables...")
                 lightningTableService.createLtTables()
@@ -47,12 +53,13 @@ fun validateApplicationTablesExist() {
             else -> {
                 println(
                     """
-                    You will not be able to manage or delete any LT tables
-                    created without the application tables.
-                    You can create the application tables later by running this application again.
-                """,
+                    |You will not be able to manage or delete any LT tables
+                    |created without the application tables.
+                    |You can create them later by running this application again.
+                    """.trimMargin(),
                 )
             }
         }
+        println()
     }
 }
