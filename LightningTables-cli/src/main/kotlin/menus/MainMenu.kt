@@ -19,7 +19,8 @@ object MainMenu {
                     Menu:
                     1. Create new lightning table
                     2. List lightning tables
-                    3. Exit
+                    3. Delete lightning table
+                    4. Exit
                 """,
                 )
 
@@ -58,6 +59,37 @@ object MainMenu {
                     }
                 }
                 "3" -> {
+                    val entries = lightningTableService.list()
+
+                    if (entries.isEmpty()) {
+                        println("No lightning tables found")
+                        return
+                    }
+
+                    val selected =
+                        ConsoleInputHelper.getListInput(
+                            "Select a lightning table to delete:",
+                            entries,
+                        ) { "${it.tableName} (base: ${it.baseTableName})" }
+
+                    if (selected != null) {
+                        val confirm =
+                            ConsoleInputHelper.getInputWithLabel(
+                                "Are you sure you want to delete '${selected.tableName}'? (y/n): ",
+                            )
+                        if (confirm.lowercase() == "y") {
+                            val success = lightningTableService.delete(selected)
+                            if (success) {
+                                println("Lightning table '${selected.tableName}' deleted successfully.")
+                            } else {
+                                println("Failed to delete lightning table '${selected.tableName}'.")
+                            }
+                        } else {
+                            println("Delete cancelled.")
+                        }
+                    }
+                }
+                "4" -> {
                     println("Exiting.")
                     exit = true
                 }
