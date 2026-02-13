@@ -26,4 +26,9 @@ val queries =
             WHERE updated_at = '2025-01-12 06:20:01'
             GROUP BY user_id
             """.trimIndent(),
+        "totalCost" to
+            """
+            SELECT SUM(cost) as total_cost
+            FROM transactions
+            """.trimIndent(),
     )
