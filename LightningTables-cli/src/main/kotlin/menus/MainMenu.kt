@@ -13,56 +13,63 @@ object MainMenu {
         var exit = false
 
         while (!exit) {
+            println("-".repeat(50))
             val input =
                 ConsoleInputHelper.getInputWithLabel(
                     """
-                    Menu:
-                    1. Create new lightning table
-                    2. List lightning tables
-                    3. Delete lightning table
-                    4. Exit
-                """,
+                    |Menu:
+                    |  1. Create new lightning table
+                    |  2. List lightning tables
+                    |  3. Delete lightning table
+                    |  4. Exit
+                    |
+                    |Select an option: 
+                    """.trimMargin(),
                 )
 
             when (input) {
                 "1" -> {
+                    println()
                     val query = ConsoleInputHelper.getInputWithLabel("Enter query to create lightning table: ")
                     val tableName = ConsoleInputHelper.getInputWithLabel("Enter name for the lightning table: ")
+                    println()
+                    println("Creating lightning table '$tableName'...")
                     val result = sqlParser.generate(query, tableName)
 
                     lightningTableService.createLightningTable(result)
                     lightningTableService.insert(result, query)
 
                     BackfillService().backfill(result.backfillContext, result.triggers.values.toList())
+                    println("Lightning table '$tableName' created successfully.")
                 }
                 "2" -> {
                     val entries = lightningTableService.list()
+                    println()
 
                     if (entries.isEmpty()) {
-                        println("No lightning table found")
+                        println("No lightning tables found.")
                         continue
                     }
 
-                    println("Lightning tables:")
+                    println("Lightning Tables (${entries.size}):")
                     entries.forEach {
-                        println(
-                            """
-                            ID: ${it.id}
-                            Lightning Table Name: ${it.tableName}
-                            Base Table Name: ${it.baseTableName}
-                            Query: ${it.query}
-                            Insert Trigger Name: ${it.insertTriggerName}
-                            Update Trigger Name: ${it.updateTriggerName}
-                            Delete Trigger Name: ${it.deleteTriggerName}
-                            """.trimIndent(),
-                        )
+                        println("-".repeat(40))
+                        println("  ID:              ${it.id}")
+                        println("  Table Name:      ${it.tableName}")
+                        println("  Base Table:      ${it.baseTableName}")
+                        println("  Query:           ${it.query}")
+                        println("  Insert Trigger:  ${it.insertTriggerName}")
+                        println("  Update Trigger:  ${it.updateTriggerName}")
+                        println("  Delete Trigger:  ${it.deleteTriggerName}")
                     }
+                    println("-".repeat(40))
                 }
                 "3" -> {
                     val entries = lightningTableService.list()
+                    println()
 
                     if (entries.isEmpty()) {
-                        println("No lightning tables found")
+                        println("No lightning tables found.")
                         continue
                     }
 
@@ -73,6 +80,7 @@ object MainMenu {
                         ) { "${it.tableName} (base: ${it.baseTableName})" }
 
                     if (selected == null) continue
+                    println()
 
                     val confirm =
                         ConsoleInputHelper.getInputWithLabel(
@@ -83,6 +91,7 @@ object MainMenu {
                         continue
                     }
 
+                    println()
                     val success = lightningTableService.delete(selected)
                     if (success) {
                         println("Lightning table '${selected.tableName}' deleted successfully.")
