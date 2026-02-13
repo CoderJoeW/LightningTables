@@ -123,9 +123,9 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
 
         // Clean up
         transaction {
-            exec("DROP TRIGGER IF EXISTS transactions_after_insert_lightning")
-            exec("DROP TRIGGER IF EXISTS transactions_after_update_lightning")
-            exec("DROP TRIGGER IF EXISTS transactions_after_delete_lightning")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_insert`")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_update`")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_delete`")
             exec("DROP TABLE IF EXISTS `$customName`")
         }
     }
@@ -169,9 +169,9 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
 
         // Clean up
         transaction {
-            exec("DROP TRIGGER IF EXISTS transactions_after_insert_lightning")
-            exec("DROP TRIGGER IF EXISTS transactions_after_update_lightning")
-            exec("DROP TRIGGER IF EXISTS transactions_after_delete_lightning")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_insert`")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_update`")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_delete`")
             exec("DROP TABLE IF EXISTS `$customName`")
         }
     }
@@ -226,9 +226,9 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
 
         // Clean up
         transaction {
-            exec("DROP TRIGGER IF EXISTS transactions_after_insert_lightning")
-            exec("DROP TRIGGER IF EXISTS transactions_after_update_lightning")
-            exec("DROP TRIGGER IF EXISTS transactions_after_delete_lightning")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_insert`")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_update`")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_delete`")
             exec("DROP TABLE IF EXISTS `$customName`")
         }
     }
@@ -269,9 +269,9 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
 
         // Clean up
         transaction {
-            exec("DROP TRIGGER IF EXISTS transactions_after_insert_lightning")
-            exec("DROP TRIGGER IF EXISTS transactions_after_update_lightning")
-            exec("DROP TRIGGER IF EXISTS transactions_after_delete_lightning")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_insert`")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_update`")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_delete`")
             exec("DROP TABLE IF EXISTS `$customName`")
         }
     }
@@ -337,9 +337,9 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
 
         // Clean up
         transaction {
-            exec("DROP TRIGGER IF EXISTS transactions_after_insert_lightning")
-            exec("DROP TRIGGER IF EXISTS transactions_after_update_lightning")
-            exec("DROP TRIGGER IF EXISTS transactions_after_delete_lightning")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_insert`")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_update`")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_delete`")
             exec("DROP TABLE IF EXISTS `$customName`")
         }
     }
@@ -380,9 +380,9 @@ class CustomTableNameIntegrationTest : DockerComposeTestBase() {
 
         // Clean up
         transaction {
-            exec("DROP TRIGGER IF EXISTS transactions_after_insert_lightning")
-            exec("DROP TRIGGER IF EXISTS transactions_after_update_lightning")
-            exec("DROP TRIGGER IF EXISTS transactions_after_delete_lightning")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_insert`")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_update`")
+            exec("DROP TRIGGER IF EXISTS `${customName}_after_delete`")
             exec("DROP TABLE IF EXISTS `$customName`")
         }
     }
