@@ -73,7 +73,8 @@ class LightningTableTriggerGeneratorSqlParser {
 
         val wherePredicates = buildWherePredicates(parsedQuery.whereClause)
         val upsertComponents = buildUpsertComponents(columnDefinitions, parsedQuery.aggregates)
-        val triggers = buildTriggers(parsedQuery.baseTableName, lightningTableName, wherePredicates, upsertComponents)
+        val triggers =
+            buildTriggers(parsedQuery.baseTableName, lightningTableName, wherePredicates, upsertComponents, parsedQuery.whereClause)
         val triggerNames =
             mapOf(
                 "insert" to "${lightningTableName}_after_insert",
@@ -513,6 +514,7 @@ class LightningTableTriggerGeneratorSqlParser {
         lightningTableName: String,
         wherePredicates: Pair<String, String>,
         upsertComponents: UpsertComponents,
+        whereClause: String? = null,
     ): Map<String, String> {
         val (oldRowPredicate, newRowPredicate) = wherePredicates
 
@@ -542,6 +544,7 @@ class LightningTableTriggerGeneratorSqlParser {
                 baseTableName,
                 upsertComponents.keyColumns,
                 upsertComponents.keyOldExpressions,
+                whereClause,
             )
 
         val triggerGen = TriggerGenerator()
@@ -572,6 +575,7 @@ class LightningTableTriggerGeneratorSqlParser {
         baseTableName: String,
         keyColumns: List<String>,
         keyOldExpressions: List<String>,
+        whereClause: String? = null,
     ): String {
         val summaryWhereClause =
             keyColumns.zip(keyOldExpressions)
@@ -579,11 +583,12 @@ class LightningTableTriggerGeneratorSqlParser {
         val existsWhereClause =
             keyColumns.zip(keyOldExpressions)
                 .joinToString(" AND ") { (col, oldExpr) -> "$col = $oldExpr" }
+        val existsFilter = if (whereClause != null) " AND $whereClause" else ""
         return "DELETE FROM `$lightningTableName` " +
             "WHERE $summaryWhereClause " +
             "AND NOT EXISTS " +
             "(SELECT 1 FROM `$baseTableName` " +
-            "WHERE $existsWhereClause);"
+            "WHERE $existsWhereClause$existsFilter);"
     }
 
     private fun formatPreview(
@@ -619,7 +624,7 @@ ${triggers["delete"]}"""
     }
 
     private fun extractWhereBeforeGroupBy(query: String): String? {
-        val pattern = Regex("""\bWHERE\b(.*?)\bGROUP\s+BY\b""", RegexOption.IGNORE_CASE)
+        val pattern = Regex("""\bWHERE\b(.*?)\bGROUP\s+BY\b""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
         val match = pattern.find(query)
         return match?.groupValues?.get(1)?.trim()
     }
@@ -629,7 +634,7 @@ ${triggers["delete"]}"""
             return null
         }
 
-        val pattern = Regex("""\bWHERE\b(.*?)$""", RegexOption.IGNORE_CASE)
+        val pattern = Regex("""\bWHERE\b(.*?)$""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
         val match = pattern.find(query)
         return match?.groupValues?.get(1)?.trim()?.trimEnd(';', ' ', '\t', '\n', '\r')
     }
@@ -654,7 +659,7 @@ ${triggers["delete"]}"""
         val sqlKeywords = setOf("AND", "OR", "NOT", "IN", "IS", "NULL", "LIKE", "BETWEEN", "CASE", "WHEN", "THEN", "END", "TRUE", "FALSE")
         val pattern =
             Regex(
-                """`?([A-Za-z_][A-Za-z0-9_]*)`""" +
+                """`?([A-Za-z_][A-Za-z0-9_]*)`?""" +
                     """(?=\s*(=|<>|!=|<|>|<=|>=|IS|IN|LIKE|BETWEEN|\)|\s|${'$'}))""",
                 RegexOption.IGNORE_CASE,
             )

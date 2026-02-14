@@ -19,4 +19,29 @@ val queries =
             FROM transactions
             GROUP BY user_id
             """.trimIndent(),
+        "sumCostByUserAtTimestamp" to
+            """
+            SELECT SUM(cost) as total_cost, user_id
+            FROM transactions
+            WHERE updated_at = '2025-01-12 06:20:01'
+            GROUP BY user_id
+            """.trimIndent(),
+        "totalCost" to
+            """
+            SELECT SUM(cost) as total_cost
+            FROM transactions
+            """.trimIndent(),
+        "sumDebitCallCostByUser" to
+            """
+            SELECT SUM(cost) as total_cost, user_id
+            FROM transactions
+            WHERE type = 'DEBIT' AND service = 'CALL'
+            GROUP BY user_id
+            """.trimIndent(),
+        "sumAndCountByUserNoAlias" to
+            """
+            SELECT SUM(cost), COUNT(*), user_id
+            FROM transactions
+            GROUP BY user_id
+            """.trimIndent(),
     )
